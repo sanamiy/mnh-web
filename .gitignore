@@ -3,3 +3,7 @@
 .env.*
 .local/
 __pycache__/
+
+# Cloudflare CLI local state
+.wrangler/
+node_modules/

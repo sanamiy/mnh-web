@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="description" content="ハッカソン参加者向けに、形式検証のしくみと、方式ごとの実装上の限界、理論上の限界を説明するガイド">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>形式検証のしくみと限界</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Zen+Kaku+Gothic+New:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: technical-book explainer — one reading column (~70ch) with a sticky table of contents on wide screens; figures are inline SVG drawn from the same tokens */
+:root {
+  color-scheme: light;
+  --bg: #FFFFFF;
+  --surface: #FFFFFF;
+  --soft: #F3F5F8;
+  --ink: #1B2330;
+  --muted: #5B6575;
+  --line: #D8DDE5;
+  --accent: #2856C4;
+  --accent-soft: #E4EBFA;
+  --warm: #C46A16;
+  --warm-soft: #FBEBDA;
+  --masked: #ECEEF2;
+  --font-display: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --font-body: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16.5px;
+  line-height: 1.85;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.layout {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-block: 48px 96px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 48px;
+}
+@media (min-width: 1080px) {
+  .layout { grid-template-columns: 230px minmax(0, 720px); justify-content: center; gap: 64px; }
+  .toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+}
+main { min-width: 0; max-width: 720px; width: 100%; }
+
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.35; }
+h1 { font-size: 2.3rem; font-weight: 700; margin: 0; }
+h2 { font-size: 1.6rem; font-weight: 700; margin: 0; }
+h3 { font-size: 1.15rem; font-weight: 700; margin: 0; color: var(--ink); }
+p { margin: 0; }
+section { display: flex; flex-direction: column; gap: 22px; scroll-margin-top: 24px; }
+section > .sub + .sub { padding-top: 8px; }
+.sub { display: flex; flex-direction: column; gap: 16px; }
+main > .stack { display: flex; flex-direction: column; gap: 88px; }
+.lead { color: var(--muted); font-size: 1.05rem; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; color: var(--accent); text-transform: uppercase; }
+.sec-no { font-family: var(--font-mono); color: var(--accent); font-weight: 600; margin-right: 0.5em; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+:not(pre) > code { background: var(--accent-soft); padding: 0.1em 0.4em; border-radius: 4px; overflow-wrap: anywhere; }
+pre { margin: 0; background: var(--soft); border: none; border-radius: 8px; padding: 14px 18px; overflow-x: auto; font-family: var(--font-mono); font-size: 0.88rem; line-height: 1.7; }
+ul, ol { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 6px; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+strong { font-weight: 700; }
+.term { font-weight: 700; color: var(--accent); }
+
+.toc { font-size: 0.92rem; }
+.toc p { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 8px; }
+.toc ol { list-style: none; padding: 0; gap: 2px; }
+@media (max-width: 1079px) { .toc ol { flex-direction: row; flex-wrap: wrap; gap: 4px 0; } .toc a { border-left: none; padding: 2px 14px 2px 0; } }
+.toc a { color: var(--ink); text-decoration: none; display: block; padding: 4px 10px; border-left: 2px solid var(--line); }
+.toc a:hover { border-left-color: var(--accent); color: var(--accent); }
+
+.note { background: var(--soft); border-radius: 14px; padding: 22px 26px; display: flex; flex-direction: column; gap: 12px; }
+.note ul { gap: 10px; font-size: 0.95rem; line-height: 1.75; }
+.note li::marker { color: var(--accent); }
+.note-title { font-weight: 700; font-family: var(--font-display); font-size: 1rem; }
+.callout { background: var(--accent-soft); border-radius: 14px; padding: 20px 26px; line-height: 1.8; }
+.callout strong:first-child { display: block; font-family: var(--font-display); margin-bottom: 6px; }
+
+.table-wrap { overflow-x: auto; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line); }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; line-height: 1.6; }
+th, td { text-align: left; padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--font-display); font-weight: 700; }
+tr:last-child td { border-bottom: none; }
+td code { overflow-wrap: anywhere; }
+td:first-child { white-space: nowrap; }
+.wrap-first td:first-child { white-space: normal; min-width: 13em; }
+.wrap-first td:nth-child(2), .wrap-first td:nth-child(4) { white-space: nowrap; }
+@media (max-width: 600px) {
+  td:first-child { white-space: normal; }
+  .wrap-first td:first-child { min-width: 9em; }
+  .wrap-first td:nth-child(2), .wrap-first td:nth-child(4) { white-space: normal; }
+  table { font-size: 0.86rem; }
+}
+
+figure { margin: 0; padding-block: 20px 4px; display: flex; flex-direction: column; gap: 14px; }
+.fig-scroll { overflow-x: auto; }
+.fig-scroll svg { display: block; width: 100%; min-width: 600px; height: auto; }
+figcaption { font-size: 0.85rem; color: var(--muted); padding-top: 10px; border-top: 1px solid var(--line); }
+
+/* SVG roles */
+svg text { font-family: var(--font-body); fill: var(--ink); font-size: 15px; }
+svg .t-muted { fill: var(--muted); font-size: 13px; }
+svg .t-small { font-size: 13px; }
+svg .t-mono { font-family: var(--font-mono); font-size: 13px; }
+svg .t-acc { fill: var(--accent); font-weight: 700; }
+svg .t-warm { fill: var(--warm); font-weight: 700; }
+svg .t-inv { fill: var(--surface); font-weight: 700; }
+svg .t-bold { font-weight: 700; }
+svg .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+svg .box-plain { fill: var(--soft); stroke: var(--line); stroke-width: 1.5; }
+svg .box-acc { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+svg .box-warm { fill: var(--warm-soft); stroke: var(--warm); stroke-width: 1.5; }
+svg .box-solid { fill: var(--accent); stroke: var(--accent); }
+svg .box-masked { fill: var(--masked); stroke: var(--line); stroke-width: 1.5; }
+svg .cell { fill: var(--accent); }
+svg .bar { fill: var(--accent); }
+svg .bar-warm { fill: var(--warm); }
+svg .ln { stroke: var(--muted); stroke-width: 1.6; fill: none; }
+svg .ln-acc { stroke: var(--accent); fill: none; }
+svg .ln-warm { stroke: var(--warm); stroke-width: 2; fill: none; }
+svg .ln-dash { stroke: var(--muted); stroke-width: 1.4; fill: none; stroke-dasharray: 5 5; }
+svg .hl { fill: none; stroke: var(--warm); stroke-width: 2; stroke-dasharray: 6 4; }
+svg .dot { fill: var(--muted); }
+svg .dot-acc { fill: var(--accent); }
+svg .area { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.4; stroke-dasharray: 6 5; opacity: 0.9; }
+svg .area-warm { fill: var(--warm-soft); stroke: var(--warm); stroke-width: 1.4; stroke-dasharray: 6 5; opacity: 0.9; }
+svg .divider { stroke: var(--line); stroke-width: 1.5; }
+svg .mk { fill: var(--muted); }
+svg .mk-acc { fill: var(--accent); }
+
+/* CSS diagrams */
+.dg { display: flex; flex-direction: column; gap: 14px; overflow-x: auto; font-size: 0.95rem; line-height: 1.5; padding-block: 4px; }
+.dg-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dg-row.center { justify-content: center; }
+.dg-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 28px; }
+.dg-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.dg-label { font-size: 0.82rem; color: var(--muted); }
+.dg-title { font-family: var(--font-display); font-weight: 700; }
+.dg-note { font-size: 0.85rem; color: var(--muted); }
+.dg-warn { color: var(--warm); font-weight: 700; }
+.arrow { color: var(--muted); text-align: center; line-height: 1; font-size: 1.1rem; }
+.tok { display: inline-flex; align-items: center; justify-content: center; padding: 6px 12px; border: 1.5px solid var(--line); border-radius: 6px; background: var(--surface); white-space: nowrap; min-width: 3em; }
+.tok.mono, .blk.mono { font-family: var(--font-mono); font-size: 0.85rem; }
+.tok.acc, .blk.acc { background: var(--accent-soft); border-color: var(--accent); }
+.tok.warm, .blk.warm { background: var(--warm-soft); border-color: var(--warm); }
+.tok.plain, .blk.plain { background: var(--soft); }
+.tok.solid, .blk.solid { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 700; }
+.tok.hl { outline: 2px dashed var(--warm); outline-offset: 3px; }
+.tok.chip { border-radius: 999px; font-size: 0.85rem; padding: 3px 10px; min-width: 0; }
+.tok.ghost { border-color: transparent; background: none; color: var(--muted); }
+.blk { border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px 14px; text-align: center; font-weight: 700; }
+.vec { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; height: 22px; width: 84px; }
+.vec.short { grid-template-columns: repeat(4, 1fr); width: 44px; }
+.vec i { background: var(--accent); border-radius: 2px; }
+.vec.hl { outline: 2px dashed var(--warm); outline-offset: 4px; border-radius: 3px; }
+.tokcols { display: grid; gap: 8px; }
+.tokcols.compact { gap: 6px; }
+.tokcols.compact .tok { padding: 5px 7px; min-width: 0; font-size: 0.88rem; }
+.tokcols.compact .vec.short { width: 36px; }
+.tokcol { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.layer { display: grid; grid-template-columns: 3.6em 1fr 1fr; gap: 8px; align-items: center; border: 1.5px solid var(--line); border-radius: 8px; padding: 8px; }
+.layer .no { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); text-align: right; }
+.layer .blk { font-weight: 400; padding: 8px; }
+.stack-flow { display: flex; flex-direction: column; gap: 8px; max-width: 460px; width: 100%; margin: 0 auto; }
+.mask { display: grid; grid-template-columns: 2.6em repeat(5, 2.4em); gap: 3px; font-size: 0.85rem; }
+.mask > span { display: flex; align-items: center; justify-content: center; height: 2.4em; }
+.mask .on { background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: 3px; }
+.mask .off { background: var(--masked); border: 1.5px solid var(--line); border-radius: 3px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.82rem; color: var(--muted); align-items: center; }
+.legend .sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
+.bars { display: grid; grid-template-columns: auto minmax(120px, 1fr) 3em; gap: 6px 10px; align-items: center; font-size: 0.9rem; }
+.track { height: 16px; }
+.fill { height: 100%; background: var(--accent); border-radius: 3px; }
+.fill.dim { opacity: 0.55; }
+.bars .pct { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.85rem; }
+.funnel { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.funnel .blk { width: 100%; }
+.funnel .step { font-size: 0.85rem; color: var(--muted); }
+
+.part { display: flex; flex-direction: column; gap: 6px; margin-bottom: -40px; }
+.part-label { font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.12em; color: var(--accent); font-weight: 600; }
+.part-title { font-family: var(--font-display); font-size: 1.9rem; font-weight: 700; line-height: 1.3; }
+.toc .toc-part { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; color: var(--accent); padding: 12px 0 4px; }
+@media (max-width: 1079px) { .toc .toc-part { flex-basis: 100%; padding: 8px 0 0; } }
+.hub { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.hub-in { display: flex; align-items: center; gap: 8px; }
+.hub-out { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 280px; }
+.hub-row { display: grid; grid-template-columns: 13em 1.2em minmax(0, 1fr); align-items: center; gap: 8px; font-size: 0.92rem; }
+.hub-row .tok { justify-content: flex-start; font-size: 0.88rem; }
+
+/* deep-dive part: more breathing room */
+main > .stack > .deep { gap: 30px; }
+main > .stack > .deep + .deep { margin-top: 40px; }
+.deep > h2 { margin-bottom: 4px; }
+.deep .sub { gap: 20px; }
+.deep > .sub + .sub, .deep > figure + .sub, .deep > p + .sub, .deep > .table-wrap + .sub { padding-top: 22px; }
+.deep h3 { font-size: 1.2rem; }
+.deep figure { padding-block: 28px 20px; }
+.deep .callout { margin-block: 8px; }
+.deep ol, .deep ul { gap: 10px; }
+.deep .table-wrap { margin-block: 4px; }
+
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
+/* このページの追加分 */
+math { font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", "Times New Roman", "Liberation Serif", "DejaVu Serif", serif; font-size: 1.08em; }
+math[display="block"] { margin-block: 4px; }
+code, pre { font-variant-ligatures: none; }
+.math-box { background: var(--soft); border-radius: 8px; padding: 14px 18px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="toc" aria-label="目次">
+    <p>目次</p>
+    <ol>
+      <li class="toc-part">全体像</li>
+      <li><a href="#about">形式検証とは</a></li>
+      <li><a href="#can">5種類の検証方式</a></li>
+      <li class="toc-part">実際に使う</li>
+      <li><a href="#tools">すぐ使える道具</a></li>
+      <li><a href="#first">最初の1回</a></li>
+      <li><a href="#read">結果の読み方</a></li>
+      <li class="toc-part">しくみを深掘り</li>
+      <li><a href="#sat">充足可能性判定</a></li>
+      <li><a href="#bmc">有界モデル検査</a></li>
+      <li><a href="#sym">記号実行</a></li>
+      <li><a href="#mc">状態空間の全探索</a></li>
+      <li><a href="#ded">演繹的検証</a></li>
+      <li><a href="#itp">証明支援系</a></li>
+      <li><a href="#nn">ニューラルネットの検証</a></li>
+      <li class="toc-part">限界</li>
+      <li><a href="#impl">実装・設計上の限界</a></li>
+      <li><a href="#common">全方式に共通する限界</a></li>
+      <li><a href="#theory">理論上の限界</a></li>
+      <li><a href="#refs">参考資料</a></li>
+      <li class="toc-part">アイデア</li>
+      <li><a href="#ideas">ハッカソンのアイデア例</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="stack">
+
+      <header class="sub">
+        <p class="eyebrow">今夜のハッカソン向け</p>
+        <h1>形式検証のしくみと限界</h1>
+        <p class="lead">形式検証の道具は、それぞれ違う方法で「すべての場合」を調べます。このページでは、まず方式ごとのしくみを説明し、そのしくみから、どこまで検証できてどこから検証できないのかを整理します。</p>
+      </header>
+
+      <div class="part">
+        <p class="part-title">全体像：形式検証で何ができるか</p>
+      </div>
+
+      <section id="about">
+        <h2>形式検証とは</h2>
+        <p><span class="term">形式検証</span>は、プログラムや設計が、数学的に書いた<span class="term">性質</span>を満たすかどうかを、定めた範囲のすべての場合について機械で調べる技術です。</p>
+        <p>テストは、選んだ入力でだけ動作を確かめます。形式検証は、入力を1つずつ試すのではなく、すべての入力や実行順序を一度に式として扱います。そのため、人が思いつかなかった入力でも、探索が届く範囲なら、性質を破る具体例が<span class="term">反例</span>として見つかります。</p>
+        <figure>
+          <div class="dg" role="img" aria-label="検証対象と性質を検査器に渡すと、証明、反例、不明のいずれかが返る">
+            <div class="dg-row center">
+              <div class="dg-col">
+                <div class="blk plain">検証対象<br><span class="dg-note">コード、設定、設計</span></div>
+                <div class="blk plain">性質<br><span class="dg-note">守られるべき条件</span></div>
+              </div>
+              <span class="arrow">→</span>
+              <div class="blk solid">検査器</div>
+              <span class="arrow">→</span>
+              <div class="dg-col">
+                <div class="blk acc">証明：すべての場合で成り立つ</div>
+                <div class="blk warm">反例：破る具体例</div>
+                <div class="blk">不明：時間切れ、判定不能</div>
+              </div>
+            </div>
+          </div>
+          <figcaption>検査器が返す答えは3種類です。「不明」があることが、後半の限界の話につながります。</figcaption>
+        </figure>
+        <p>形式検証には、必ず<strong>検証対象</strong>が必要です。動いているプログラム、ファイアウォールの設定、通信の手順など、調べる対象があって初めて意味を持ちます。そして「すべての場合」とは、世の中のすべてではなく、<strong>対象と性質を書いた範囲のすべて</strong>です。この範囲の外は何も分かりません。</p>
+      </section>
+
+      <section id="can">
+        <h2>5種類の検証方式</h2>
+        <p>道具はたくさんありますが、すべての場合を調べる方法で分けると、大きく5種類です。どの方式も、裏側では後述の充足可能性判定を使うことが多く、違うのは<strong>「すべて」をどう式にするか</strong>です。</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>方式</th><th>すべてを調べる方法</th><th>向いている対象</th><th>道具</th></tr></thead>
+            <tbody>
+              <tr><td>有界モデル検査</td><td>ループを N 回まで展開して、1つの論理式にする</td><td>既存の C コード</td><td>CBMC</td></tr>
+              <tr><td>記号実行</td><td>入力を記号のまま実行し、分岐ごとに条件を集める</td><td>既存の Python コード</td><td>CrossHair</td></tr>
+              <tr><td>状態空間の全探索</td><td>到達できる状態をすべて列挙する</td><td>並行処理、通信手順の設計</td><td>TLA+（TLC）</td></tr>
+              <tr><td>演繹的検証</td><td>人が書いた注釈から、証明すべき式を自動で作る</td><td>新しく書くコード</td><td>Dafny, Verus</td></tr>
+              <tr><td>証明支援系</td><td>証明そのものを書き、小さな核で検算する</td><td>数学、コンパイラや OS の中核</td><td>Lean, Isabelle, Coq</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>コードにせず、設定や制御則を直接論理式に書いて Z3 に解かせる使い方もよくあります。AWS の権限ポリシーの検査が代表例です。また、ニューラルネットには専用の検証器があります。これらは後半で説明します。</p>
+      </section>
+
+      <div class="part">
+        <p class="part-title">実際に使う</p>
+      </div>
+
+      <section id="tools">
+        <h2>すぐ使える道具</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>道具</th><th>対象</th><th>導入</th><th>入口</th></tr></thead>
+            <tbody>
+              <tr><td>CrossHair</td><td>Python の関数</td><td><code>pip install crosshair-tool</code></td><td><a href="https://crosshair.readthedocs.io/">公式文書</a></td></tr>
+              <tr><td>Z3</td><td>設定、権限、制御則</td><td><code>pip install z3-solver</code></td><td><a href="https://microsoft.github.io/z3guide/">ブラウザの入門</a></td></tr>
+              <tr><td>CBMC</td><td>C のコード</td><td><code>apt install cbmc</code></td><td><a href="https://www.cprover.org/cbmc/">公式サイト</a></td></tr>
+              <tr><td>TLA+</td><td>手順、並行処理の設計</td><td>Java と <code>tla2tools.jar</code></td><td><a href="https://learntla.com/">入門サイト</a></td></tr>
+              <tr><td>SMTChecker</td><td>Solidity の契約</td><td><code>solc</code> に内蔵</td><td><a href="https://docs.soliditylang.org/en/latest/smtchecker.html">公式文書</a></td></tr>
+              <tr><td>Dafny</td><td>新しく書くコード</td><td>公式の配布物</td><td><a href="https://dafny.org/">公式サイト</a></td></tr>
+              <tr><td>Lean 4</td><td>数学、言語や OS の証明</td><td><code>elan</code></td><td><a href="https://adam.math.hhu.de/">証明ゲーム</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout"><strong>迷ったら</strong>動いている Python があれば CrossHair、C があれば CBMC を、そのままかけてください。コードがなく手順を確かめたいなら TLA+、設定を確かめたいなら Z3 です。</div>
+      </section>
+
+      <section id="first">
+        <h2>最初の1回</h2>
+        <p>割り勘の関数に、CrossHair で性質を付けます。<code>pre</code> が入力の条件、<code>post</code> が守られるべき性質です。</p>
+<pre><code>def split(total: int, n: int) -&gt; int:
+    """
+    pre: total &gt; 0 and n &gt; 0
+    post: __return__ * n == total
+    """
+    return total // n</code></pre>
+<pre><code>$ crosshair check --analysis_kind=PEP316 split.py
+split.py:4: error: false when calling split(1, 2) (which returns 0)</code></pre>
+        <p>1円を2人で割ると、1人0円になって1円消える、という反例が出ました。入力を自分で選んでいないことが重要です。</p>
+      </section>
+
+      <section id="read">
+        <h2>結果の読み方</h2>
+        <p>「エラーが出なかった」は、「正しい」とは限りません。何を調べ終えたのかは、道具ごとの表示で確かめます。</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>表示</th><th>意味</th><th>言えること</th></tr></thead>
+            <tbody>
+              <tr><td>Z3：<code>unsat</code></td><td>性質の否定を満たす値がない</td><td>書いた式の範囲では証明済み</td></tr>
+              <tr><td>Z3：<code>sat</code></td><td>性質を破る値がある</td><td>反例あり</td></tr>
+              <tr><td>Z3：<code>unknown</code></td><td>判定できなかった</td><td><strong>何も言えない</strong></td></tr>
+              <tr><td>CrossHair：出力なし</td><td>時間内に反例が出なかった</td><td><strong>何も言えない</strong></td></tr>
+              <tr><td>CrossHair：<code>Confirmed over all paths</code></td><td>全経路を調べ切った（<code>--report_all</code> で表示）</td><td>与えた入力条件の範囲で成立</td></tr>
+              <tr><td>CBMC：<code>VERIFICATION SUCCESSFUL</code></td><td>指定した展開回数までは反例なし</td><td><code>--unwinding-assertions</code> なしでは<strong>範囲の外は不明</strong></td></tr>
+              <tr><td>TLC：<code>No error has been found</code></td><td>モデルの全状態で性質が成立</td><td>モデルの範囲で成立。コードの話ではない</td></tr>
+              <tr><td>Dafny：<code>might not hold</code></td><td>証明できなかった</td><td>バグとは限らない。補助の注釈が足りないこともある</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>反例が出なかったときは、調べ切ったのか、途中で打ち切ったのかで意味が変わります。調べ切って「ない」なら証明です。打ち切ったなら判定不能です。表の <code>unsat</code> と <code>Confirmed over all paths</code> が前者で、<code>unknown</code> と「出力なし」が後者です。</p>
+        <div class="sub">
+          <h3>反例は必ず見つかるのか</h3>
+          <p>必ずではありません。見つかるのは、性質を式に書けて、探索が届く範囲のバグです。次の2つの関数は同じ値を返すので、どちらも入力 4321 で性質を破ります。</p>
+<pre><code>def direct(n: int) -&gt; int:
+    """
+    pre: 0 &lt;= n &lt;= 5000
+    post: __return__ != 4321
+    """
+    return n
+
+def counted(n: int) -&gt; int:          # 性質は direct と同じ
+    c = 0
+    for _ in range(n):
+        c += 1
+    return c</code></pre>
+          <p class="mono">手元の実験（CrossHair、1条件60秒）</p>
+<pre><code>direct   → error: false when calling direct(4321)
+counted  → Not confirmed（見逃し）</code></pre>
+          <p>ループを挟むだけで見逃しました。ハッシュ値で分岐する関数でも、100万通りの入力に反例が23個あるのに、見つかりませんでした。また、TLA+ の反例は書いたモデル上の手順で、実物のコードに同じバグがあることまでは示しません。性質が弱ければ、バグがあっても通ります（<a href="#common">全方式に共通する限界</a>）。</p>
+        </div>
+      </section>
+
+      <div class="part">
+        <p class="part-title">しくみを深掘り</p>
+      </div>
+
+      <section id="sat" class="deep">
+        <h2>充足可能性判定：多くの道具の土台</h2>
+        <div class="sub">
+          <h3>「性質が成り立つ」を「反例がない」に言い換える</h3>
+          <p>プログラムの動作を式 <math><mi>P</mi></math>、性質を式 <math><mi>Q</mi></math> とします。「<math><mi>P</mi></math> ならば必ず <math><mi>Q</mi></math>」を証明する代わりに、次の式を満たす値を探します。</p>
+          <math display="block"><mi>P</mi><mo>∧</mo><mo>¬</mo><mi>Q</mi></math>
+          <p>動作としてはありうるのに性質を破る、という意味の式です。値が見つかれば、それが反例です。どの値でも無理だと分かれば、反例はないので、性質はすべての場合で成り立ちます。証明の問題が、<strong>反例を探し切る問題</strong>に変わります。</p>
+        </div>
+        <div class="sub">
+          <h3>SAT：式を真にできる値があるかを調べる</h3>
+          <p><span class="term">SAT</span> は、「真か偽の変数でできた式を、真にできる値はあるか」を問う問題です。性質の真偽を直接調べるのではありません。<strong>性質を破る状況</strong>を式にして渡し、値があれば反例、値がなければ性質はいつでも成り立つ、と読みます。</p>
+          <p>小さな例で見ます。次のプログラムで、性質は成り立つでしょうか。</p>
+<pre><code>動作1：会員なら割引する
+動作2：割引したらログを残す
+性質 ：会員ならログが残る</code></pre>
+          <p>性質を破る状況は「会員なのにログがない」です。これが起こりうるかを、順に埋めて調べます。</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>手順</th><th>根拠</th><th>分かること</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>性質を破る状況</td><td>会員＝真、ログ＝偽</td></tr>
+                <tr><td>2</td><td>動作1</td><td>割引＝真</td></tr>
+                <tr><td>3</td><td>動作2</td><td>ログ＝真。<strong>手順1と矛盾</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>どの手順も、そうなるしかない値を書いただけです。それでも矛盾したので、どんな値でも「会員なのにログがない」状況は作れません。つまり、性質は成り立ちます。変数3個の8通りを全部確かめても、結果は同じです。</p>
+          <p>動作2 がなければ、矛盾は起きません。会員＝真、割引＝真、ログ＝偽で式が真になり、これが「会員なのにログがない」という反例です。</p>
+        </div>
+        <div class="sub">
+          <h3>順に埋められないときは、場合分けする</h3>
+          <p>値が1つに決まらないときは、仮に決めて進みます。たとえば、次の4つの条件を同時に満たす値を探します。</p>
+<pre><code>a なら b
+a なら b でない
+a でないなら c
+a でないなら c でない</code></pre>
+          <figure>
+            <div class="fig-scroll">
+              <svg viewBox="0 0 640 150" role="img" aria-label="aが真の場合も偽の場合も矛盾するので、解なしになる">
+                <rect class="box" x="2" y="54" width="92" height="42" rx="8"/><text x="48" y="80" text-anchor="middle" class="t-small">a の値</text>
+                <rect class="box" x="152" y="8" width="112" height="42" rx="8"/><text x="208" y="34" text-anchor="middle" class="t-small">a＝真と仮定</text>
+                <rect class="box" x="152" y="100" width="112" height="42" rx="8"/><text x="208" y="126" text-anchor="middle" class="t-small">a＝偽と仮定</text>
+                <rect class="box-warm" x="322" y="8" width="164" height="42" rx="8"/><text x="404" y="34" text-anchor="middle" class="t-small t-warm">b が真かつ偽で矛盾</text>
+                <rect class="box-warm" x="322" y="100" width="164" height="42" rx="8"/><text x="404" y="126" text-anchor="middle" class="t-small t-warm">c が真かつ偽で矛盾</text>
+                <rect class="box-acc" x="544" y="54" width="92" height="42" rx="8"/><text x="590" y="80" text-anchor="middle" class="t-small">解なし</text>
+                <path class="ln" d="M94 66 L150 34" marker-end="url(#ar)"/>
+                <path class="ln" d="M94 84 L150 116" marker-end="url(#ar)"/>
+                <path class="ln" d="M264 29 L320 29" marker-end="url(#ar)"/>
+                <path class="ln" d="M264 121 L320 121" marker-end="url(#ar)"/>
+                <path class="ln" d="M486 34 L542 66" marker-end="url(#ar)"/>
+                <path class="ln" d="M486 116 L542 84" marker-end="url(#ar)"/>
+              </svg>
+            </div>
+          </figure>
+          <p><math><mi>a</mi></math> は真か偽のどちらかしかないので、両方で矛盾すれば、どの値でも無理です。数学の場合分けの証明と同じ理屈です。こうして全部の可能性がつぶれれば「解なし」、途中で全変数が矛盾なく決まれば「解あり」です。</p>
+        </div>
+        <div class="sub">
+          <h3>全通りを試さずに済む理由</h3>
+          <p>変数が <math><mi>n</mi></math> 個なら、組み合わせは <math><msup><mn>2</mn><mi>n</mi></msup></math> 通りあります。変数が増えると、1つずつは試せません。そこで使う手法が<span class="term">矛盾からの学習</span>（CDCL）です。この手法を実装した道具に CaDiCaL などがあります。</p>
+          <p>矛盾が起きたら、原因を「<math><mi>x</mi></math> と <math><mi>y</mi></math> を同時に真にはできない」のような新しい条件として覚えます。この2つが原因なら、ほかの変数がどんな値でも同じ矛盾が起きるので、該当する候補をまとめて調べずに済みます。</p>
+          <figure>
+            <div class="dg" role="img" aria-label="値を仮に決め、連鎖して決まる値を伝播し、矛盾したら原因を学習して戻る繰り返し">
+              <div class="dg-row center">
+                <span class="tok">① 値を仮に決める</span><span class="arrow">→</span>
+                <span class="tok">② 連鎖で埋める</span><span class="arrow">→</span>
+                <span class="tok warm">③ 矛盾</span><span class="arrow">→</span>
+                <span class="tok acc">④ 学習して戻る</span>
+              </div>
+              <p class="dg-note">全変数が矛盾なく決まれば「解あり」。仮定を1つも置かなくても矛盾するなら、どの値でも無理なので「解なし」です。時間内に決着しなければ判定不能です。</p>
+            </div>
+          </figure>
+        </div>
+        <div class="sub">
+          <h3>SMT：数や文字列の意味を足す</h3>
+          <p>SAT の変数は真か偽だけですが、プログラムには整数、配列、文字列が出てきます。問いをそこまで広げて、「整数や文字列なども含む式を、真にできる値はあるか」としたものが <span class="term">SMT</span> です。解くときは、式の骨組みを SAT と同じ手法で解きながら、<math><mi>x</mi><mo>&gt;</mo><mn>3</mn></math> と <math><mi>x</mi><mo>&lt;</mo><mn>2</mn></math> が両立しないといった中身の判断を、数や文字列の専門の解法に任せます。この SMT を解く代表的な道具が Z3 です。CrossHair、Dafny、SMTChecker の裏側でも使われています。</p>
+          <p>固定長の整数は、1ビットずつの真偽の式に展開して SAT で解くこともできます。C の <code>int</code> のオーバーフローまで正確に扱えるのは、このためです。</p>
+        </div>
+      </section>
+
+      <section id="bmc" class="deep">
+        <h2>有界モデル検査：ループを N 回分の式に開く</h2>
+        <p>CBMC のしくみです。プログラムのループを指定回数だけ展開し、代入を式に変えて、全体を1つの論理式にします。反例を探す部分は SAT に任せます。</p>
+        <figure>
+          <div class="dg" role="img" aria-label="ループを3回に展開すると、1回目、2回目、3回目の処理が並ぶ直線のプログラムになり、論理式に変換できる">
+            <div class="dg-split">
+              <div class="dg-col">
+                <p class="dg-title">元のプログラム</p>
+<pre><code>x = 0
+while cond(x):
+    x = f(x)
+assert safe(x)</code></pre>
+              </div>
+              <div class="dg-col">
+                <p class="dg-title">3回に展開した式</p>
+                <div class="math-box">
+                  <math display="block"><mtable columnalign="left">
+                    <mtr><mtd><msub><mi>x</mi><mn>0</mn></msub><mo>=</mo><mn>0</mn></mtd></mtr>
+                    <mtr><mtd><msub><mi>x</mi><mn>1</mn></msub><mo>=</mo><mi>f</mi><mtext>(</mtext><msub><mi>x</mi><mn>0</mn></msub><mtext>)</mtext></mtd></mtr>
+                    <mtr><mtd><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mi>f</mi><mtext>(</mtext><msub><mi>x</mi><mn>1</mn></msub><mtext>)</mtext></mtd></mtr>
+                    <mtr><mtd><msub><mi>x</mi><mn>3</mn></msub><mo>=</mo><mi>f</mi><mtext>(</mtext><msub><mi>x</mi><mn>2</mn></msub><mtext>)</mtext></mtd></mtr>
+                  </mtable></math>
+                </div>
+              </div>
+            </div>
+          </div>
+          <figcaption>変数は時点ごとに別の名前になります。分岐の条件も加えた全体を SAT で解きます（図は分岐を省略）。</figcaption>
+        </figure>
+        <p>入力は未知のまま式に入るので、N 回以内に起きるバグは入力に関係なくすべて見つかります。一方で、<strong>N 回を超えた先は式に入っていません</strong>。CBMC は、ループが N 回で本当に終わることを確かめる<span class="term">展開確認</span>（unwinding assertion）を用意しています。</p>
+        <div class="sub">
+          <h3>単体テストとの違い</h3>
+          <p>単体テストは、人が選んだ値を入力して実行し、結果を見ます。有界モデル検査は、入力を<strong>値を決めないまま</strong>式にして、「<code>assert</code> を破る値はあるか」を解きます。試した値の中から探すのではなく、式から破る値を求めます。</p>
+<pre><code>int discount(int price) {
+  if (price == 123456) return -1;  // バグ
+  return price;
+}
+
+int p = nondet_int();              // 値を決めない
+__CPROVER_assume(p &gt;= 0);
+assert(discount(p) &gt;= 0);</code></pre>
+          <p>入力に 0、100、9999 を与える単体テストは、すべて通ります。同じ関数を CBMC にかけると、<code>p=123456</code> という反例がすぐに出ます。<code>int</code> の値を1つずつ試したわけではありません。</p>
+          <p>N はループの回数で、入力の個数ではありません。この例にはループがないので、回数の制限は関係せず、0 以上の <code>int</code> のすべてを調べたことになります。</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th></th><th>単体テスト</th><th>有界モデル検査</th></tr></thead>
+              <tbody>
+                <tr><td>入力</td><td>人が選んだ値</td><td>値を決めず、すべて</td></tr>
+                <tr><td>調べ方</td><td>実行して結果を見る</td><td>式にして解く</td></tr>
+                <tr><td>通ったときに言えること</td><td>選んだ値では動いた</td><td>ループ N 回以内なら、どの入力でも <code>assert</code> は破れない</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>範囲の外を保証しないので、証明の方式としては弱い方です。それでも、選んだ値しか試さない単体テストよりずっと広く調べられ、コードをほぼそのまま渡せます。手元の自販機のバグは、N を増やしていくと8回の展開で見つかりました。また、ループの回数に上限があるコードなら、範囲の外が残らないことも確かめられ、その場合は証明になります（<a href="#impl">有界モデル検査の限界</a>）。</p>
+        </div>
+      </section>
+
+      <section id="sym" class="deep">
+        <h2>記号実行：入力を記号のまま走らせる</h2>
+        <p>CrossHair のしくみです。入力に具体的な値を入れず、記号のまま実行します。<code>if</code> に出会うたびに、どちらへ進むための条件を集め、Z3 に「この道に入る入力はあるか」を尋ねます。</p>
+        <figure>
+          <div class="dg" role="img" aria-label="入力xの分岐で2つの経路に分かれ、それぞれに経路条件が集まる">
+            <div class="funnel">
+              <div class="blk plain">入力 x は記号のまま</div>
+              <div class="arrow">↓</div>
+              <div class="blk">if x &gt; 10:</div>
+              <div class="dg-row center">
+                <div class="dg-col"><span class="arrow">↓</span><div class="blk acc">経路1の条件：x &gt; 10</div></div>
+                <div class="dg-col"><span class="arrow">↓</span><div class="blk warm">経路2の条件：x ≤ 10</div></div>
+              </div>
+              <div class="step">経路ごとに、性質を破る入力があるかを Z3 に尋ねる</div>
+            </div>
+          </div>
+        </figure>
+        <p>経路の数が有限で、すべて調べ切れれば、全入力についての確認になります。この場合に CrossHair は <code>Confirmed over all paths</code> と表示します。経路が多すぎて調べ切れないときは、見つかった反例を返すだけです。<strong>分岐が増えるほど経路は倍々に増える</strong>ので、記号実行は反例探しに強く、証明には向かないことが多い方式です。</p>
+        <p>CrossHair は、コードを Python の上で<strong>実際に実行</strong>します。解析ではなく実行なので、既存のコードにそのまま使えます。純粋な関数でなくても構いません。手元の実験では、引数、オブジェクト、グローバル変数を書き換える関数でも反例が出ました。一方、ファイルへの書き込みのように外へ影響する処理は、CrossHair が安全のために止めるので、その関数の検査は中断します。外とのやり取りを計算の部分から切り分ければ、計算の部分は検査できます。</p>
+      </section>
+
+      <section id="mc" class="deep">
+        <h2>状態空間の全探索：設計を全部たどる</h2>
+        <p>TLA+ で設計を書き、検査器 TLC で調べます。ここで書くのはコードではなく、システムの<strong>状態</strong>（変数の値）と、<strong>起こりうる遷移</strong>の定義です。TLC は初期状態から幅優先で、到達できる状態をすべて訪ねます。</p>
+        <figure>
+          <div class="fig-scroll">
+            <svg viewBox="0 0 640 210" role="img" aria-label="初期状態から分岐して状態をたどり、一部の経路で不変条件を破る状態に到達する">
+              <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+              <rect class="box-acc" x="4" y="84" width="96" height="42" rx="8"/><text x="52" y="110" text-anchor="middle" class="t-small">初期状態</text>
+              <rect class="box" x="166" y="24" width="112" height="42" rx="8"/><text x="222" y="50" text-anchor="middle" class="t-small">A が確認</text>
+              <rect class="box" x="166" y="144" width="112" height="42" rx="8"/><text x="222" y="170" text-anchor="middle" class="t-small">B が確認</text>
+              <rect class="box" x="344" y="84" width="112" height="42" rx="8"/><text x="400" y="110" text-anchor="middle" class="t-small">両者が確認</text>
+              <rect class="box-warm" x="522" y="84" width="114" height="42" rx="8"/><text x="579" y="110" text-anchor="middle" class="t-small t-warm">不変条件違反</text>
+              <path class="ln" d="M100 96 L164 50" marker-end="url(#ar)"/>
+              <path class="ln" d="M100 114 L164 160" marker-end="url(#ar)"/>
+              <path class="ln" d="M278 50 L342 96" marker-end="url(#ar)"/>
+              <path class="ln" d="M278 160 L342 114" marker-end="url(#ar)"/>
+              <path class="ln" d="M456 105 L520 105" marker-end="url(#ar)"/>
+            </svg>
+          </div>
+          <figcaption>別々の順序でも同じ状態に合流します。訪問済みの状態は調べ直しません。違反に達したら、そこまでの経路が反例です。</figcaption>
+        </figure>
+        <p>TLC は、訪問済みの状態を丸ごと保存せず、64ビットの指紋（ハッシュ値）だけを保存して記憶を節約します。そのため、別の状態が同じ指紋になると調べ漏らす可能性があり、実行後にその確率の見積もりを表示します。</p>
+        <p>調べられる性質は2種類あります。<span class="term">安全性</span>は「悪いことが起きない」という性質です。たとえば「二重請求は起きない」なら、二重請求に至る手順が1つ見つかれば反例になります。<span class="term">活性</span>は「良いことがいつか必ず起きる」という性質です。たとえば「申請にはいつか必ず結果が出る」なら、結果が出ないまま永遠に待ち続ける手順が反例になります。</p>
+      </section>
+
+      <section id="ded" class="deep">
+        <h2>演繹的検証：注釈から証明すべき式を作る</h2>
+        <p>Dafny のしくみです。全体をたどる代わりに、関数の入口と出口の条件を書き、部分ごとに証明します。その土台が、次の<span class="term">ホーア三つ組</span>です。</p>
+        <math display="block"><mo lspace="0" rspace="0">{</mo><mi>P</mi><mo lspace="0" rspace="0">}</mo><mspace width="0.4em"/><mi>C</mi><mspace width="0.4em"/><mo lspace="0" rspace="0">{</mo><mi>Q</mi><mo lspace="0" rspace="0">}</mo></math>
+        <p>「条件 <math><mi>P</mi></math> が成り立つときに処理 <math><mi>C</mi></math> を実行し、終わると、必ず条件 <math><mi>Q</mi></math> が成り立つ」という意味です。Dafny はコードと注釈から、証明すべき論理式を自動で作り、Boogie という中間言語を通して Z3 に解かせます。</p>
+        <p>難しいのはループです。何回回るか分からないループを、展開せずに扱うために、人が<span class="term">不変条件</span>を書きます。「毎周の前後で保たれる条件」を示せれば、回数によらず成り立ちます。これは数学的帰納法と同じ構造です。止まることは、周回ごとに必ず減る量（<code>decreases</code>）で示します。</p>
+<pre><code>method Sum(n: nat) returns (s: nat)
+  ensures s == n * (n + 1) / 2
+{
+  s := 0;
+  var i := 0;
+  while i &lt; n
+    invariant i &lt;= n &amp;&amp; s == i * (i + 1) / 2  // 毎周保たれる
+    decreases n - i                           // 必ず減る
+  { i := i + 1; s := s + i; }
+}</code></pre>
+        <p>有界モデル検査と違い、回数に上限がありません。代わりに、不変条件を考える仕事が人（または AI）に移ります。Solidity の SMTChecker が使う<span class="term">ホーン節解法</span>（CHC）は、この不変条件を解法側で自動的に探す方式です。</p>
+      </section>
+
+      <section id="itp" class="deep">
+        <h2>証明支援系：証明そのものを検算する</h2>
+        <p>Lean、Isabelle、Coq などです。ここまでの方式は探索で答えを探しましたが、証明支援系では<strong>証明そのものをデータとして書き</strong>、それが正しいかを検査します。</p>
+        <p>Lean の土台にあるのは、<strong>命題を型、証明をその型の値</strong>として扱う対応です（カリー・ハワード対応）。「証明が正しいか」は「この値の型が合っているか」に置き換わるので、型検査器で判定できます。証明を探すのは難しくても、できた証明を検算するのは機械的にできます。</p>
+        <figure>
+          <div class="dg" role="img" aria-label="人やAIや自動証明の機能が証明を作り、小さな核だけが検算する">
+            <div class="dg-row center">
+              <div class="dg-col"><div class="blk plain">人</div><div class="blk plain">AI</div><div class="blk plain">自動証明の機能</div></div>
+              <span class="arrow">→</span><span class="tok">証明</span><span class="arrow">→</span>
+              <div class="blk solid">小さな核<br>（検算だけする）</div>
+              <span class="arrow">→</span><span class="tok acc">定理</span>
+            </div>
+            <p class="dg-note">作る側がどれだけ間違えても、核が通さなければ定理になりません。</p>
+          </div>
+        </figure>
+        <p>信じる対象を小さな核に絞れるのが最大の強みです。</p>
+        <div class="sub">
+          <h3>なぜ機械で検算できるのか</h3>
+          <p>証明は、推論の規則を1段ずつ適用した列です。検算では、各段が規則に合っているかを順に照合するだけです。数独を解くのは大変でも、解答の確認はすぐできるのと同じで、証明を<strong>見つける</strong>のは難しくても、<strong>確かめる</strong>のは機械的にできます。</p>
+<pre><code>theorem swap (p q : Prop) (h : p ∧ q) : q ∧ p := ⟨h.2, h.1⟩</code></pre>
+          <p>「p かつ q なら、q かつ p」という命題が型で、<code>:=</code> の右の値がその証明です。自動証明の命令で書いても、できあがるのは同じ種類の値で、核はその値を検算します。</p>
+        </div>
+        <div class="sub">
+          <h3>核は本当に偽の証明を止めるのか</h3>
+          <p class="mono">手元の実験（Lean 4.35）</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>試したこと</th><th>結果</th></tr></thead>
+              <tbody>
+                <tr><td>正しい証明</td><td>通過</td></tr>
+                <tr><td><code>2 + 2 = 5</code> を証明したと主張する</td><td>拒否</td></tr>
+                <tr><td>左右を取り違えた証明</td><td>拒否</td></tr>
+                <tr><td>証明生成の層を飛ばして、<code>False</code> の偽の証明を核へ直接渡す</td><td><strong>核が拒否</strong>。ファイル全体が失敗し、成果物も作られない</td></tr>
+                <tr><td><code>sorry</code> で証明を省く</td><td>通るが警告が出る。<code>#print axioms</code> に <code>sorryAx</code> と出る</td></tr>
+                <tr><td><code>2 + 2 = 5</code> を公理として足す</td><td>通るが、<code>#print axioms</code> に公理の名前が出る</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="sub">
+          <h3>検算が保証しないこと</h3>
+          <p>核が保証するのは「定理文のとおりに証明されている」ことだけです。定理文が弱いと、次のように警告なしで通ります。</p>
+<pre><code>def mySort (_ : List Nat) : List Nat := []   -- 常に空リストを返す
+
+theorem mySort_sorted (l : List Nat) :
+    (mySort l).Pairwise (· ≤ ·) := by simp [mySort]</code></pre>
+          <p>「結果は整列済み」は正しく証明されました。しかし、元の要素が残ることを定理文に書いていないので、何も防げません。定理文が欲しい性質かどうかは、人が読んで判断します。</p>
+        </div>
+        <div class="sub">
+          <h3>AI が証明を書けるなら、Lean が最強か</h3>
+          <p>確実さでは最強の候補です。Lean の最大の弱点は人手のコストで、AI はそこを埋めます。しかも AI の証明が間違っていても核が弾くので、AI を信じなくて済みます。ただし、次の2つは残ります。</p>
+          <ul>
+            <li><strong>定理文：</strong>AI が弱い定理にすり替えても通ります。証明が安くなるほど、人が読む定理文が増えます</li>
+            <li><strong>実物のコードとの距離：</strong>証明の対象は Lean 上の定義で、動いている C や Python ではありません</li>
+          </ul>
+          <p>そのため、Lean は数学や新しく作る中核部分に向きます。動いているコードのバグ探しには、コードをそのまま渡せて、反例が修正の手がかりになる CBMC や CrossHair のほうが向きます。</p>
+          <div class="callout"><strong>分担</strong>AI が証明を書き、核が検算し、人は定理文を読みます。</div>
+        </div>
+      </section>
+
+      <section id="nn" class="deep">
+        <h2>ニューラルネットの検証：折れ線の場合分け</h2>
+        <p>ReLU を使うネットは、入力に対する折れ線（区分線形）の関数です。この形を利用して、「性質を破る入力はあるか」を解きます。</p>
+        <div class="sub">
+          <h3>何を検証するのか</h3>
+          <p>調べるのは、「入力がこの範囲なら、出力はこの条件を満たす」という形の性質です。代表例は画像分類の頑健性です。基準の画像 <math><msub><mi>x</mi><mn>0</mn></msub></math> の各画素を最大 <math><mi>ε</mi></math> だけ変えても、正解クラス <math><mi>c</mi></math> の得点がほかのクラス <math><mi>j</mi></math> を上回り続ける、という性質を次のように書きます。</p>
+          <math display="block"><mo>∀</mo><mi>x</mi><mo>:</mo><mspace width="0.4em"/><msub><mrow><mo>‖</mo><mi>x</mi><mo>−</mo><msub><mi>x</mi><mn>0</mn></msub><mo>‖</mo></mrow><mi>∞</mi></msub><mo>≤</mo><mi>ε</mi><mspace width="0.5em"/><mo>⇒</mo><mspace width="0.5em"/><msub><mi>f</mi><mi>c</mi></msub><mtext>(</mtext><mi>x</mi><mtext>)</mtext><mo>&gt;</mo><msub><mi>f</mi><mi>j</mi></msub><mtext>(</mtext><mi>x</mi><mtext>)</mtext></math>
+          <p>破る値が見つかれば、それが誤分類を起こす入力（敵対的サンプル）です。なければ、その範囲に誤分類を起こす入力はありません。保証されるのは<strong>選んだ <math><msub><mi>x</mi><mn>0</mn></msub></math> のまわりだけ</strong>で、ほかの画像については何も言えません。</p>
+        </div>
+        <div class="sub">
+          <h3>ReLU で場合分けする</h3>
+          <p>ReLU は「入力が正ならそのまま、負なら0」です。各 ReLU がどちらの側にいるかを決めると、ネット全体が線形の式になり、線形の不等式として確実に解けます。ただし、場合の数は ReLU が <math><mi>n</mi></math> 個で最大 <math><msup><mn>2</mn><mi>n</mi></msup></math> 通りです。</p>
+        </div>
+        <div class="sub">
+          <h3>緩い見積もりで、場合分けを省く</h3>
+          <p>そこで専用の検証器は、まず入力の範囲を層ごとに伝えて、出力の上下限を素早く見積もります。これが<span class="term">境界の伝播</span>です。見積もりは実際より広くなりますが、実際の範囲を必ず含むので、見積もりの範囲で性質が成り立てば証明になります。</p>
+          <p>最小の例で見ます。次のネットの値は実際には <math><mrow><mo>|</mo><mi>x</mi><mo>|</mo></mrow></math> で、最大は 1 です。「<math><mi>y</mi><mo>≤</mo><mn>1.5</mn></math>」を確かめます。</p>
+          <math display="block"><mi>y</mi><mo>=</mo><mi>ReLU</mi><mtext>(</mtext><mi>x</mi><mtext>)</mtext><mo>+</mo><mi>ReLU</mi><mtext>(</mtext><mo>−</mo><mi>x</mi><mtext>)</mtext><mo>,</mo><mspace width="1em"/><mo>−</mo><mn>1</mn><mo>≤</mo><mi>x</mi><mo>≤</mo><mn>1</mn></math>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>手順</th><th>分かること</th><th>結果</th></tr></thead>
+              <tbody>
+                <tr><td>境界の伝播</td><td>各 ReLU は 0 以上 1 以下なので、<math><mi>y</mi></math> は 0 以上 2 以下</td><td>上限 2 では言えない</td></tr>
+                <tr><td><math><mi>x</mi><mo>≥</mo><mn>0</mn></math> の場合</td><td><math><mi>y</mi><mo>=</mo><mi>x</mi></math> なので <math><mi>y</mi><mo>≤</mo><mn>1</mn></math></td><td>成立</td></tr>
+                <tr><td><math><mi>x</mi><mo>&lt;</mo><mn>0</mn></math> の場合</td><td><math><mi>y</mi><mo>=</mo><mo>−</mo><mi>x</mi></math> なので <math><mi>y</mi><mo>≤</mo><mn>1</mn></math></td><td>成立</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>境界の伝播は2つの ReLU を別々に見るので、同時には最大にならないことが分かりません。このように見積もりで言えないときだけ、ReLU を1つ場合分けして見積もりを締めます。これが<span class="term">分枝限定法</span>です。見積もりで決着した枝は、それ以上調べずに済みます。</p>
+          <p>α,β-CROWN は、この見積もりを GPU で高速に行う検証器です。場合分けの条件を調整用の変数 <math><mi>β</mi></math> で見積もりに組み込み、勾配法で <math><mi>β</mi></math> を調整して見積もりを締めます。論文は、線形計画法を使う従来の分枝限定法より最大で3桁速いと報告しています（Wang ら、2021）。ネット検証の競技会 VNN-COMP の2021年の優勝ツールです。</p>
+        </div>
+        <div class="sub">
+          <h3>実例と、規模の壁</h3>
+          <p>Reluplex の論文は、無人航空機の衝突回避システム ACAS Xu の試作ネット45個（各300個の ReLU）を検証しました。性質 <math><msub><mi>φ</mi><mn>1</mn></msub></math> は41個で証明でき、4個は時間切れでした。性質 <math><msub><mi>φ</mi><mn>2</mn></msub></math> は35個で反例が見つかり、調査の結果、許容できる動作と判断されました。つまり、反例がそのまま欠陥とは限らず、人の判断が残ります。</p>
+          <p>汎用の解法では、この規模でも苦戦します。同論文の比較では、2個のネットの8問に4時間の制限で挑み、SMT の解法で解けたのは Yices と MathSAT の2問ずつでした。Reluplex は8問すべて解いています。手元の実験でも、隠れ層1層のランダムなネットを Z3 に渡すと、ReLU 40個は1.44秒で解けましたが、80個では60秒以内に決着しませんでした（各1回の小さな実験です）。</p>
+        </div>
+      </section>
+
+      <div class="part">
+        <p class="part-title">限界：どこまで検証できるのか</p>
+      </div>
+
+      <section id="impl" class="deep">
+        <h2>実装・設計上の限界（方式別）</h2>
+        <p>各方式の限界は、しくみからそのまま出てきます。この節の「手元の実験」は、ハッカソン用の小さな検証コードで確認した実際の結果です。</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>方式</th><th>壁</th><th>起きること</th><th>できる対策</th></tr></thead>
+            <tbody>
+              <tr><td>SAT / SMT</td><td>難しい式、不安定さ</td><td><code>unknown</code>、時間切れ、小さな変更で通らなくなる</td><td>式を単純化、固定長の整数を使う</td></tr>
+              <tr><td>有界モデル検査</td><td>展開回数</td><td>N 回より先を見ない</td><td>展開確認を有効にする</td></tr>
+              <tr><td>記号実行</td><td>経路爆発</td><td>調べ切れず、何も言えない</td><td>入力の範囲を絞る</td></tr>
+              <tr><td>状態空間の全探索</td><td>状態爆発、設計とコードの差</td><td>小さなモデルしか回せない</td><td>個数を減らす、対称性を使う</td></tr>
+              <tr><td>演繹的検証</td><td>不変条件、自動化の脆さ</td><td>正しくても通らない</td><td>補助の注釈を足す、AI に書かせる</td></tr>
+              <tr><td>証明支援系</td><td>人手のコスト</td><td>証明がコードの何十倍にもなる</td><td>既存の定理を使う、AI に書かせる</td></tr>
+              <tr><td>ニューラルネット</td><td>規模、意味のある性質</td><td>大きなモデルや「意味」は扱いにくい</td><td>範囲を絞る、専用検証器を使う</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sub">
+          <h3>SAT / SMT：解けない式と、不安定さ</h3>
+          <p>SMT の解法は、理論ごとに得意不得意があります。Z3 の公式文書は、非線形の実数算術について「Z3 は完全ではなく、<code>unknown</code> を返すか、止まらないことがある」と明記しています。掛け算どうしの式が入ると、急に難しくなります。</p>
+          <p class="mono">手元の実験（Z3、制限時間20秒）</p>
+<pre><code>x*x*x + y*y*y == z*z*z, x,y,z &gt; 0（整数）  → unknown（時間切れ）
+a*a + b*b &lt; 1, a + b &gt; 2（実数）           → unsat</code></pre>
+          <p>もう1つの問題が<span class="term">不安定さ</span>です。意味の変わらない変更でも、解法の探索が変わって通らなくなることがあります。6つの検証プロジェクトの 17,043 問を調べた研究では、最新版の解法で 2.6% の問題が不安定で、プロジェクトによっては 5.0% に達しました。解法の更新で、かえって不安定になることも多いと報告されています。</p>
+        </div>
+
+        <div class="sub">
+          <h3>有界モデル検査：範囲外は「成功」と出る</h3>
+          <p>N 回を超えるバグは、式に入っていないので見つかりません。しかも、表示は成功になります。</p>
+          <p class="mono">手元の実験（CBMC 5.95、バグを入れた自販機のコード）</p>
+<pre><code>$ cbmc vending.c --unwind 3
+**** WARNING: Use --unwinding-assertions to obtain sound verification results
+VERIFICATION SUCCESSFUL       ← バグがあるのに成功
+
+$ cbmc vending.c --unwind 3 --unwinding-assertions
+[main.unwind.0] unwinding assertion loop 0: FAILURE
+VERIFICATION FAILED           ← 展開が足りないことが分かる</code></pre>
+          <p>また、CBMC はプログラムの中しか見ません。ファイル、ネットワーク、OS の動作など、外の世界は人が模型を書くか、任意の値として扱う必要があります。</p>
+        </div>
+
+        <div class="sub">
+          <h3>記号実行：経路爆発と、副作用</h3>
+          <p>分岐を1つ通るごとに経路は最大2倍になります。ループの回数が入力で決まる場合は、経路が無数にあることもあります。CrossHair の公式文書の限界の節は、最初に「反例がないことは、性質が成り立つ保証ではない」と書いています。</p>
+          <p>ほかにも、同じ入力で動作が変わるコードは、基本的に解析できません。乱数のように CrossHair が値を差し替えられるものは例外で、手元の実験では乱数が6を返す場合の反例も出ました。また、コードを実際に実行するので、ディスクやネットワークへの保護はあっても完全ではなく、C で書かれた拡張の動作は防げません。</p>
+        </div>
+
+        <div class="sub">
+          <h3>状態空間の全探索：状態爆発と、コードとの差</h3>
+          <p>状態の数は、プロセスや変数が増えるほど掛け算で増えます。実際のシステムは無限の状態を持つことも多いので、「サーバー3台、メッセージ4通まで」のように有限の模型に縮めて調べます。範囲外の台数で起きるバグは見つかりません。</p>
+          <p>より本質的なのは、<strong>検証したのが設計であってコードではない</strong>ことです。AWS は TLA+ で、最短でも35手かかるバグを発見した一方で、実行コードが仕様どおりかを検証できる、大規模分散システムに使える道具は知らないと述べています。</p>
+          <p>指紋の衝突も理論上はありえますが、手元の実験では TLC が見積もった確率は <math><mn>9.8</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>19</mn></mrow></msup></math> で、小さなモデルでは問題になりません。</p>
+        </div>
+
+        <div class="sub">
+          <h3>演繹的検証：正しくても通らない</h3>
+          <p>Dafny のエラーは「バグがある」ではなく「証明できなかった」という意味です。不変条件が足りないのか、本当にバグなのかは、人が切り分ける必要があります。</p>
+          <p>Dafny の公式文書は、小さく正しい変更で証明が時間切れになる現象を<strong>脆さ</strong>（brittleness）と呼び、自動推論の決定可能性の限界に根本原因があると説明しています。また、<code>assume</code> や <code>{:axiom}</code> で証明を省くと、書いた内容が間違っていた場合に、「証明した」という答えが信用できなくなります。</p>
+        </div>
+
+        <div class="sub">
+          <h3>証明支援系：コスト</h3>
+          <p>もっとも強い保証を得られますが、高くつきます。OS のマイクロカーネル seL4 の検証では、C コード 8,700 行に対して、証明は Isabelle で 200,000 行、労力は約20人年でした。</p>
+          <p>証明支援系でも、抜け道は残ります。Lean の <code>sorry</code> は証明の省略で、独自の公理を足すこともできます。計算で済ませる <code>native_decide</code> は、核だけでなくコード生成器も信じることになります。<code>#print axioms</code> で、定理が依存する公理を確認してください。</p>
+        </div>
+
+        <div class="sub">
+          <h3>ニューラルネット：規模と意味</h3>
+          <p>ReLU ネットの性質の検証は NP 完全であることが証明されています（Katz ら、2017）。つまり、最悪の場合は指数時間を覚悟する必要があります。同論文の検証対象は、隠れ層に合計300個の ReLU を持つネットでした。専用検証器の進歩で扱える規模は広がっていますが、現在の大規模な言語モデルの全体を証明する方法にはなっていません。</p>
+          <p>規模より難しいのは<strong>性質</strong>です。「入力の数値を少し変えても出力が大きく変わらない」は書けますが、「この回答は事実として正しい」「この文章は親切だ」は、そもそも式に書けません。</p>
+        </div>
+      </section>
+
+      <section id="common" class="deep">
+        <h2>全方式に共通する限界</h2>
+        <p>どの方式でも、証明が言えるのは「<strong>前提が正しければ</strong>、書いた性質が、書いたモデルで成り立つ」ということだけです。下の4か所は、証明の外にあります。</p>
+        <figure>
+          <div class="dg" role="img" aria-label="現実の要求と仕様、仕様とモデル、モデルと道具、道具と実行環境の間に、証明の外の隙間がある">
+            <div class="stack-flow">
+              <div class="blk warm">① 本当に欲しいこと ↔ 書いた性質</div>
+              <div class="blk warm">② 実際のシステム ↔ 書いたモデル</div>
+              <div class="blk warm">③ 検査器、コンパイラの正しさ</div>
+              <div class="blk warm">④ OS、ハードウェア、外部のライブラリ</div>
+            </div>
+          </div>
+          <figcaption>Fonseca らの研究のバグは、ほぼこの隙間にありました。</figcaption>
+        </figure>
+
+        <div class="sub">
+          <h3>① 性質が弱いと、ダメな実装も通る</h3>
+          <p>もっとも起きやすい失敗です。検査器は書かれた性質しか調べません。</p>
+          <p class="mono">手元の実験（CrossHair）</p>
+<pre><code>def checkout(price, percent, fixed):
+    """
+    pre: price &gt;= 0 and 0 &lt;= percent &lt;= 100 and fixed &gt;= 0
+    post: 0 &lt;= __return__ &lt;= price
+    """
+    return 0     # 何を買っても無料
+
+→ Confirmed over all paths.</code></pre>
+          <p><code>0 ≤ 請求額 ≤ 定価</code> は安全性なので、何も請求しない実装でも通ります。「割引を正しく反映した額である」まで書く必要があります。TLA+ でも同じで、「請求は1回まで」だけなら、一度も請求しないシステムが通ります。安全性に、活性や機能の性質を組み合わせてください。</p>
+          <p>前提が強すぎる場合も同じです。手元の実験で、Solidity のトークンの初期残高を入れ忘れたところ、全員の残高が0のままなのでバグの経路に到達できず、バグがある版まで安全と判定されました。</p>
+        </div>
+
+        <div class="sub">
+          <h3>② モデルは現実そのものではない</h3>
+          <p>Smith（1985）は、証明が示すのは2つの形式的な記述の間の整合性（相対的な無矛盾性）であり、機械と現実の世界の関係ではない、と指摘しました。モデルに書かなかった現象（停電、遅延、人の操作ミス）は、検証の対象になりません。</p>
+        </div>
+
+        <div class="sub">
+          <h3>③④ 検証された部分の外でバグが起きる</h3>
+          <p>Fonseca ら（2017）は、検証済みの分散システム3つ（IronFleet、Verdi、Chapar）を調べ、<strong>16個のバグ</strong>を発見しました。原因は、仕様、検証と外部をつなぐ薄い層、検証の補助ツールなど、検証された部分とそれ以外の<strong>境界</strong>にありました。一方で、8か月以上かけて探しても、検証された分散プロトコル自体のバグは見つかりませんでした。</p>
+          <p>Yang ら（2011）も同じ構図を示しました。ランダムなプログラムで主要な C コンパイラをテストしたところ、検証済みコンパイラ CompCert の証明部分からは、他のコンパイラで見つかった種類のバグが見つかりませんでした。約6 CPU 年を費やしても、です。ただし、証明していない部分からはバグが見つかりました。</p>
+          <p>seL4 の検証も、コンパイラ、アセンブリ、ハードウェアの正しさを前提にしています。</p>
+          <div class="callout"><strong>つまり</strong>形式検証は、証明した部分にはとても強く効きます。そして、証明の外側が残ります。テストの代わりではなく、テストと組み合わせて使うものです。</div>
+        </div>
+      </section>
+
+      <section id="theory" class="deep">
+        <h2>理論上の限界</h2>
+        <p>ここまでの限界は、道具の改良で押し戻せるものもありました。ここからは、<strong>どんなに道具が進歩しても越えられない</strong>限界です。</p>
+
+        <div class="sub">
+          <h3>停止性問題：万能の判定器は作れない</h3>
+          <p>チューリング（1936）に由来する結果です。「任意のプログラムと入力を受け取り、そのプログラムが止まるかどうかを必ず正しく答える」アルゴリズムは存在しません。</p>
+          <p>証明の考え方は、自己言及です。そのような判定器 <code>halts</code> があると仮定し、次のプログラムを作ります。</p>
+<pre><code>def trouble(p):
+    if halts(p, p):      # p に p を渡すと止まるなら
+        while True: pass # 永久に回る
+    else:                # 止まらないなら
+        return           # すぐ止まる</code></pre>
+          <p><code>trouble(trouble)</code> は、止まると判定されたら止まらず、止まらないと判定されたら止まります。どちらの答えも間違いになるので、<code>halts</code> は存在できません。</p>
+        </div>
+
+        <div class="sub">
+          <h3>ライスの定理：動作に関する性質はすべて同じ</h3>
+          <p>ライス（1953）は、これを一般化しました。プログラムの<strong>動作に関する非自明な性質は、すべて決定不能</strong>です。決定不能とは、どの入力にも正しく答えて必ず止まるアルゴリズムが存在しない、という意味です。非自明とは、満たすプログラムと満たさないプログラムの両方がある、という意味です。「配列の範囲外を読まない」も「秘密を漏らさない」も、ここに含まれます。</p>
+        </div>
+
+        <div class="sub">
+          <h3>だから、どの道具も何かを諦めている</h3>
+          <p>チューリング完全な言語を相手にする自動検査器は、次の3つを同時に満たせません。</p>
+          <figure>
+            <div class="fig-scroll">
+              <svg viewBox="0 0 640 232" role="img" aria-label="健全、完全、必ず止まるの3つを同時には満たせない">
+                <polygon class="box-acc" points="320,54 470,200 170,200"/>
+                <circle cx="320" cy="54" r="6" class="dot-acc"/><circle cx="470" cy="200" r="6" class="dot-acc"/><circle cx="170" cy="200" r="6" class="dot-acc"/>
+                <text x="320" y="20" text-anchor="middle" class="t-bold">健全</text><text x="320" y="40" text-anchor="middle" class="t-muted">「証明」は本当に正しい</text>
+                <text x="486" y="194" class="t-bold">完全</text><text x="486" y="214" class="t-muted">正しいなら証明できる</text>
+                <text x="154" y="194" class="t-bold" text-anchor="end">必ず止まる</text><text x="154" y="214" class="t-muted" text-anchor="end">有限時間で答える</text>
+                <text x="320" y="162" text-anchor="middle" class="t-acc">3つ同時は不可能</text>
+              </svg>
+            </div>
+          </figure>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>道具</th><th>諦めたもの</th><th>具体的には</th></tr></thead>
+              <tbody>
+                <tr><td>CBMC</td><td>範囲</td><td>指定した回数までに問題を制限して、答えを出す</td></tr>
+                <tr><td>TLC</td><td>範囲</td><td>有限のモデルに制限して、全探索する</td></tr>
+                <tr><td>CrossHair</td><td>完全性</td><td>時間内に調べ切れなければ、何も断定しない</td></tr>
+                <tr><td>Dafny</td><td>完全性</td><td>正しくても「証明できない」と答えることがある</td></tr>
+                <tr><td>SMTChecker</td><td>完全性</td><td>公式文書のとおり、健全だが不完全で、誤報がありうる</td></tr>
+                <tr><td>Lean</td><td>自動化</td><td>証明は人や AI が書き、機械は検算だけする</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout"><strong>誤解しやすい点</strong>決定不能とは「すべてのプログラムに使える1つの手順がない」という意味で、「検証できない」という意味ではありません。個別のプログラムには個別の証明が書けます。seL4 も、その1つです。また、実際の計算機は有限なので原理上は全探索できますが、状態数が膨大で現実には終わりません。そこに次の計算量の壁があります。</div>
+        </div>
+
+        <div class="sub">
+          <h3>セキュリティホールがないことは検証できるか</h3>
+          <p>ライスの定理が否定するのは、どんなプログラムにも使えて、必ず止まり、必ず正しく答える検証器だけです。実用の検証器は「分からない」と答えることで、これを避けます。Rust のコンパイラが身近な例で、<code>unsafe</code> を除けば通ったコードはメモリ安全です。その代わり、安全でも拒否されるコードがあります。個別のプログラムなら証明もできます。seL4 は、仕様どおりに動き、クラッシュせず、危険な操作もしないことを証明しました。</p>
+          <p>本当の壁は、ライスの定理より<strong>性質を式に書けるかどうか</strong>です。</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>確かめたいこと</th><th>検証</th><th>理由</th></tr></thead>
+              <tbody>
+                <tr><td>バッファオーバーフローがない</td><td>できる</td><td>式に書ける</td></tr>
+                <tr><td>権限のない人が読めない</td><td>できる</td><td>権限の定義を書けば式になる</td></tr>
+                <tr><td>どんな攻撃にも破られない</td><td><strong>できない</strong></td><td>「どんな攻撃にも」を式に書けない</td></tr>
+                <tr><td>ハードウェアの脆弱性も含めて安全</td><td><strong>モデルの外</strong></td><td>seL4 もハードウェアの正しさを前提にしている</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>言えるのは、「書いた種類のホールが、前提の範囲にはない」ことまでです。</p>
+        </div>
+
+        <div class="sub">
+          <h3>決定できる論理と、できない論理</h3>
+          <p><span class="term">決定可能</span>とは、式を渡すと、正しいか間違いかを必ず有限時間で答える手順があることです。扱えるかどうかの話ではありません。決定不能な論理でも、式は書けますし、証明もできます。自動で答えが出る保証がないだけです。どの論理が決定可能かは、次のように分かれます。</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>論理</th><th>判定</th><th>備考</th></tr></thead>
+              <tbody>
+                <tr><td>命題論理（SAT）</td><td>決定可能</td><td>NP 完全（Cook, 1971）</td></tr>
+                <tr><td>整数の足し算（プレスブルガー算術）</td><td>決定可能</td><td>最悪の計算量は非常に大きい</td></tr>
+                <tr><td>実数の足し算と掛け算</td><td>決定可能</td><td>Tarski。計算は重い</td></tr>
+                <tr><td>実数に sin などを加える</td><td>決定不能</td><td>扱える場合は限られる</td></tr>
+                <tr><td>整数の足し算と掛け算</td><td>決定不能</td><td>ヒルベルトの第10問題（Matiyasevich, 1970）</td></tr>
+                <tr><td>一階述語論理</td><td>決定不能</td><td>Church と Turing, 1936。正しい式は証明を探せば見つかる</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="mono">手元の実験（Z3、制限時間20秒）</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>式</th><th>結果</th></tr></thead>
+              <tbody>
+                <tr><td><code>3*a + 6*b == 1</code>（整数、足し算だけ）</td><td><code>unsat</code></td></tr>
+                <tr><td><code>x*x*x + y*y*y + z*z*z == 114</code>（実数）</td><td><code>sat</code></td></tr>
+                <tr><td>同じ式（整数）</td><td><code>unknown</code>（時間切れ）</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>同じ式でも、実数なら解けて、整数では解けません。整数は掛け算と組み合わせると計算そのものを式で表せるので、停止性問題と同じ壁にぶつかります。固定長の整数なら有限なので決定可能ですが、ビット数が増えると計算は重くなります。</p>
+          <p>Lean の論理は表現力が高いので、全体としては決定不能です。それでも、定理は自由に書けて、できた証明は機械的に検算できます。決定不能なのは「証明を見つける」部分で、そこを人や AI が担当します。</p>
+          <p class="mono">手元の実験（Lean 4.35）</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>試したこと</th><th>結果</th></tr></thead>
+              <tbody>
+                <tr><td><code>x &lt; y → x + 1 ≤ y</code> を <code>omega</code>（線形の整数を解く命令）で</td><td>自動で証明</td></tr>
+                <tr><td><code>x * y = y * x</code> を <code>omega</code> で</td><td>失敗（掛け算は対象外）</td></tr>
+                <tr><td><code>x * y = y * x</code> に定理 <code>Nat.mul_comm</code> を渡す</td><td>通過</td></tr>
+                <tr><td>コラッツ予想を定理として書く</td><td>書ける。証明は <code>sorry</code> のまま</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+        <div class="sub">
+          <h3>計算量：解けても終わらない</h3>
+          <p>SAT は NP 完全です。P ≠ NP が正しければ（未解決の予想です）、最悪の場合に素早く解く方法はありません。現実の問題の多くが解けるのは、実際の式に構造があり、解法がそれを利用できるからで、難しい入力が消えたわけではありません。</p>
+        </div>
+
+        <div class="sub">
+          <h3>ゲーデルの不完全性定理：証明する体系自身の限界</h3>
+          <p>ここまでは計算の限界でしたが、不完全性定理は<strong>証明そのものの限界</strong>です。</p>
+          <ul>
+            <li><strong>第一不完全性定理：</strong>一定の算術を含む無矛盾な形式体系には、その体系の中で証明も反証もできない文が存在します</li>
+            <li><strong>第二不完全性定理：</strong>そのような体系は、自分自身の無矛盾性を証明できません</li>
+          </ul>
+          <p>検証にとっての意味は2つあります。第一に、公理を決めれば、その公理では届かない真理が残ります。公理を足せば、足した体系にまた新しい限界ができます。第二に、Lean のような証明支援系は、自分の論理が矛盾していないことを自分で証明できません。ある論理を信じる根拠は、より強い論理か、人の判断に頼ることになります。</p>
+          <p>ただし、これは普段のプログラム検証で直接ぶつかる壁ではありません。実務で止まる原因は、ほとんどが前述の計算量や、不変条件、仕様の書き方です。</p>
+        </div>
+
+        <div class="sub">
+          <h3>形式化できないこと</h3>
+          <p>最後の限界は数学の外にあります。形式検証は、形式の世界の中で正しさを示す技術です。「本当に欲しかったものは何か」を決める工程は形式化できません。使いやすいか、公平か、この仕様でよいのか、という判断は人に残ります。</p>
+          <div class="callout"><strong>まとめ</strong>証明が保証するのは「書いた性質が、書いたモデルで、前提の下で成り立つ」ことです。だからこそ、検証の価値は道具の選択より、<strong>何を性質として書くか</strong>で決まります。</div>
+        </div>
+      </section>
+
+      <section id="refs">
+        <h2>参考資料</h2>
+        <ul>
+          <li><a href="https://www.cs.virginia.edu/~robins/Turing_Paper_1936.pdf">Turing (1936) “On Computable Numbers, with an Application to the Entscheidungsproblem”</a> — 決定不能性の原論文</li>
+          <li><a href="https://www.ams.org/journals/tran/1953-074-02/S0002-9947-1953-0053041-6/">Rice (1953) “Classes of Recursively Enumerable Sets and Their Decision Problems”</a> — ライスの定理</li>
+          <li><a href="https://plato.stanford.edu/entries/goedel-incompleteness/">Stanford Encyclopedia of Philosophy “Gödel’s Incompleteness Theorems”</a> — 不完全性定理の解説</li>
+          <li><a href="https://homes.cs.washington.edu/~pfonseca/papers/eurosys2017-dsbugs.pdf">Fonseca et al. (2017) “An Empirical Study on the Correctness of Formally Verified Distributed Systems”</a> — 検証済みシステムの16個のバグ</li>
+          <li><a href="https://users.cs.utah.edu/~regehr/papers/pldi11-preprint.pdf">Yang et al. (2011) “Finding and Understanding Bugs in C Compilers”</a> — CompCert のテスト</li>
+          <li><a href="https://www.sigops.org/s/conferences/sosp/2009/papers/klein-sosp09.pdf">Klein et al. (2009) “seL4: Formal Verification of an OS Kernel”</a> — 証明の規模と前提</li>
+          <li><a href="https://www.andrew.cmu.edu/user/bparno/papers/mariposa.pdf">Zhou et al. (2023) “Mariposa: Measuring SMT Instability in Automated Program Verification”</a> — 証明の不安定さ</li>
+          <li><a href="https://arxiv.org/abs/1702.01135">Katz et al. (2017) “Reluplex: An Efficient SMT Solver for Verifying Deep Neural Networks”</a> — ReLU ネット検証の NP 完全性</li>
+          <li><a href="https://arxiv.org/abs/2103.06624">Wang et al. (2021) “Beta-CROWN”</a> — 境界の伝播による検証</li>
+          <li><a href="https://lamport.azurewebsites.net/tla/formal-methods-amazon.pdf">Newcombe et al. (2015) “How Amazon Web Services Uses Formal Methods”</a> — TLA+ の実務利用</li>
+          <li><a href="https://lamport.azurewebsites.net/pubs/yuanyu-model-checking.pdf">Yu et al. (1999) “Model Checking TLA+ Specifications”</a> — TLC のしくみ</li>
+          <li><a href="https://www.cs.cmu.edu/~emc/papers/Conference%20Papers/A%20Tool%20for%20Checking%20ANSI-C%20Programs.pdf">Clarke et al. (2004) “A Tool for Checking ANSI-C Programs”</a> — CBMC のしくみ</li>
+          <li><a href="https://lean-lang.org/papers/lean4.pdf">de Moura &amp; Ullrich (2021) “The Lean 4 Theorem Prover and Programming Language”</a> — Lean 4 の設計</li>
+          <li><a href="https://www.student.cs.uwaterloo.ca/~cs492/11public_html/p18-smith.pdf">Smith (1985) “The Limits of Correctness”</a> — モデルと現実の差</li>
+          <li>各道具の公式文書（<a href="https://crosshair.readthedocs.io/en/latest/limitations.html">CrossHair の限界</a>、<a href="https://docs.soliditylang.org/en/latest/smtchecker.html">SMTChecker</a>、<a href="https://dafny.org/latest/DafnyRef/DafnyRef">Dafny</a>、<a href="https://microsoft.github.io/z3guide/docs/theories/Arithmetic/">Z3 の算術</a>、<a href="https://lean-lang.org/doc/reference/latest/ValidatingProofs/">Lean の証明の確認</a>）</li>
+        </ul>
+        <p class="lead">「手元の実験」の結果は、Z3、CrossHair、CBMC 5.95、TLC、Lean 4.35 で実際に実行したものです。アイデア例の対象は、検証用に作った小さな実装とモデルで、バグも説明のために入れたものです。</p>
+      </section>
+
+      <div class="part">
+        <p class="part-title">アイデア：何を検証するか</p>
+      </div>
+
+      <section id="ideas">
+        <h2>ハッカソンのアイデア例</h2>
+        <p>次の表は、バグを入れた小さな実装を用意し、実際に検証した例です。対象と性質をどう組むかの参考にしてください。バグがあると分かっている小さな例なので、本番のコードで同じように見つかるとは限りません。</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>検証対象</th><th>性質</th><th>見つかる反例</th><th>道具</th></tr></thead>
+            <tbody>
+              <tr><td>決済 API の再送</td><td>請求は1回まで</td><td>応答が消えて再送すると2回請求</td><td>TLA+</td></tr>
+              <tr><td>データ移行の手順</td><td>どの順でも読み取りが失敗しない</td><td>列を先に置換すると旧版が止まる</td><td>TLA+</td></tr>
+              <tr><td>AI エージェントの実行設計</td><td>機密が外へ出ない</td><td>機密読取 → Web 閲覧 → 送信</td><td>TLA+</td></tr>
+              <tr><td>AWS の権限ポリシー</td><td>人事データを取得できない</td><td><code>GetObject</code> を拒否しても <code>GetObjectVersion</code> が通る</td><td>Z3</td></tr>
+              <tr><td>ファイアウォールの設定</td><td>管理ポートに社外から届かない</td><td>社外から到達できる。無効なルールも検出</td><td>Z3</td></tr>
+              <tr><td>自販機の C コード</td><td>代金と商品の数が一致する</td><td>売り切れでも代金を取る</td><td>CBMC</td></tr>
+              <tr><td>ガチャの抽選コード</td><td>天井までに必ず当たる</td><td>まとめ引きで天井を超える</td><td>CrossHair</td></tr>
+              <tr><td>学習済みニューラルネット</td><td>入力の微小な変化で出力が崩れない</td><td>猫耳を足すと評価が下がる入力</td><td>Z3</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+</body>
+</html>

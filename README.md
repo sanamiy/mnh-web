@@ -1,32 +1,44 @@
 # Monday Night Hackathon
 
-マンデーナイトハッカソンの解説・参考資料を公開する静的Webサイトです。
+マンデーナイトハッカソンの解説・参考資料を公開する静的Webサイトです。Nuxtなどのフレームワークやビルドは不要です。
 
-- サイト: https://sanamiy.github.io/mnh-web/
-- BERTのしくみと使い方: https://sanamiy.github.io/mnh-web/bert/
+- サイト: https://monday-night-hackathon.pages.dev/
+- BERTのしくみと使い方: https://monday-night-hackathon.pages.dev/bert/
+- 形式検証のしくみと限界: https://monday-night-hackathon.pages.dev/formal-verification/
+
+公開先は既存のCloudflare Pagesプロジェクト `monday-night-hackathon` です。新ドメインの選定は保留しています。
 
 ## 構成
 
-- `docs/index.html`: 資料の入口
-- `docs/bert/index.html`: BERTの解説
-- `docs/.nojekyll`: HTMLをそのまま配信するための設定
+- `public/index.html`: 資料の入口
+- `public/bert/index.html`: BERTの解説
+- `public/formal-verification/index.html`: 形式検証の解説
+- `scripts/deploy.sh`: Cloudflare Pagesへの公開コマンド
 
-ビルドや依存パッケージは不要です。BERT解説の図・スタイルはHTML内に含まれ、フォントはGoogle Fontsから読み込みます。
+図・スタイルは各HTML内に含まれ、フォントはGoogle Fontsから読み込みます。公開するファイルだけを `public/` に置きます。
 
 ## ローカル確認
 
 ```sh
-python3 -m http.server 8000 --directory docs
+python3 -m http.server 8000 --directory public
 ```
 
 http://localhost:8000/ を開きます。
 
 ## 更新・公開
 
-`docs/` を編集して `main` にpushすると、GitHub Pagesが自動更新されます。
-公開元は `main` ブランチの `/docs` です。
+変更をGitにcommit・pushしてから、Cloudflareにログイン済みの端末で実行します。
 
-## 切り出し元
+```sh
+./scripts/deploy.sh
+```
 
-2026年11月2日に、既存の `chosa/BERT/site/bert/index.html` を内容を変えずに切り出しました。
-解説サイトの管理は、このリポジトリで行います。
+このプロジェクトはDirect Upload方式です。GitへのpushだけではCloudflare Pagesは更新されません。認証情報はWranglerが端末側で管理し、リポジトリには含めません。
+
+## 資料の管理
+
+Web公開する解説の正本は、このリポジトリの `public/` です。開催運用・制作中の素材・非公開の登壇資料は、別の `monday-night-hackathon` フォルダで管理します。
+
+BERTの登壇資料はそちらの `materials/bert/` に集約済みです。元の `chosa/BERT` の資料名は、正本へのシンボリックリンクとして残しています。
+
+BERT解説は既存の `chosa/BERT/site/bert/index.html`、形式検証の解説は2026年11月3日に受け取った `formal-verification.html` から取り込みました。
