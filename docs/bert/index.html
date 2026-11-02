@@ -1,0 +1,981 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="description" content="ハッカソン参加者向けに、BERT でできること、すぐ使える日本語モデル、仕組みを図で説明するガイド">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BERTのしくみと使い方</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Zen+Kaku+Gothic+New:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: technical-book explainer — one reading column (~70ch) with a sticky table of contents on wide screens; figures are inline SVG drawn from the same tokens */
+:root {
+  color-scheme: light;
+  --bg: #FFFFFF;
+  --surface: #FFFFFF;
+  --soft: #F3F5F8;
+  --ink: #1B2330;
+  --muted: #5B6575;
+  --line: #D8DDE5;
+  --accent: #2856C4;
+  --accent-soft: #E4EBFA;
+  --warm: #C46A16;
+  --warm-soft: #FBEBDA;
+  --masked: #ECEEF2;
+  --font-display: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --font-body: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16.5px;
+  line-height: 1.85;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.layout {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-block: 48px 96px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 48px;
+}
+@media (min-width: 1080px) {
+  .layout { grid-template-columns: 230px minmax(0, 720px); justify-content: center; gap: 64px; }
+  .toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+}
+main { min-width: 0; max-width: 720px; width: 100%; }
+
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.35; }
+h1 { font-size: 2.3rem; font-weight: 700; margin: 0; }
+h2 { font-size: 1.6rem; font-weight: 700; margin: 0; }
+h3 { font-size: 1.15rem; font-weight: 700; margin: 0; color: var(--ink); }
+p { margin: 0; }
+section { display: flex; flex-direction: column; gap: 22px; scroll-margin-top: 24px; }
+section > .sub + .sub { padding-top: 8px; }
+.sub { display: flex; flex-direction: column; gap: 16px; }
+main > .stack { display: flex; flex-direction: column; gap: 88px; }
+.lead { color: var(--muted); font-size: 1.05rem; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; color: var(--accent); text-transform: uppercase; }
+.sec-no { font-family: var(--font-mono); color: var(--accent); font-weight: 600; margin-right: 0.5em; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+:not(pre) > code { background: var(--accent-soft); padding: 0.1em 0.4em; border-radius: 4px; overflow-wrap: anywhere; }
+pre { margin: 0; background: var(--soft); border: none; border-radius: 8px; padding: 14px 18px; overflow-x: auto; font-family: var(--font-mono); font-size: 0.88rem; line-height: 1.7; }
+ul, ol { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 6px; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+strong { font-weight: 700; }
+.term { font-weight: 700; color: var(--accent); }
+
+.toc { font-size: 0.92rem; }
+.toc p { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 8px; }
+.toc ol { list-style: none; padding: 0; gap: 2px; }
+@media (max-width: 1079px) { .toc ol { flex-direction: row; flex-wrap: wrap; gap: 4px 0; } .toc a { border-left: none; padding: 2px 14px 2px 0; } }
+.toc a { color: var(--ink); text-decoration: none; display: block; padding: 4px 10px; border-left: 2px solid var(--line); }
+.toc a:hover { border-left-color: var(--accent); color: var(--accent); }
+
+.note { background: var(--soft); border-radius: 14px; padding: 22px 26px; display: flex; flex-direction: column; gap: 12px; }
+.note ul { gap: 10px; font-size: 0.95rem; line-height: 1.75; }
+.note li::marker { color: var(--accent); }
+.note-title { font-weight: 700; font-family: var(--font-display); font-size: 1rem; }
+.callout { background: var(--accent-soft); border-radius: 14px; padding: 20px 26px; line-height: 1.8; }
+.callout strong:first-child { display: block; font-family: var(--font-display); margin-bottom: 6px; }
+
+.table-wrap { overflow-x: auto; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line); }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; line-height: 1.6; }
+th, td { text-align: left; padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--font-display); font-weight: 700; }
+tr:last-child td { border-bottom: none; }
+td code { overflow-wrap: anywhere; }
+td:first-child { white-space: nowrap; }
+.wrap-first td:first-child { white-space: normal; min-width: 13em; }
+.wrap-first td:nth-child(2), .wrap-first td:nth-child(4) { white-space: nowrap; }
+@media (max-width: 600px) {
+  td:first-child { white-space: normal; }
+  .wrap-first td:first-child { min-width: 9em; }
+  .wrap-first td:nth-child(2), .wrap-first td:nth-child(4) { white-space: normal; }
+  table { font-size: 0.86rem; }
+}
+
+figure { margin: 0; padding-block: 20px 4px; display: flex; flex-direction: column; gap: 14px; }
+.fig-scroll { overflow-x: auto; }
+.fig-scroll svg { display: block; width: 100%; min-width: 600px; height: auto; }
+figcaption { font-size: 0.85rem; color: var(--muted); padding-top: 10px; border-top: 1px solid var(--line); }
+
+/* SVG roles */
+svg text { font-family: var(--font-body); fill: var(--ink); font-size: 15px; }
+svg .t-muted { fill: var(--muted); font-size: 13px; }
+svg .t-small { font-size: 13px; }
+svg .t-mono { font-family: var(--font-mono); font-size: 13px; }
+svg .t-acc { fill: var(--accent); font-weight: 700; }
+svg .t-warm { fill: var(--warm); font-weight: 700; }
+svg .t-inv { fill: var(--surface); font-weight: 700; }
+svg .t-bold { font-weight: 700; }
+svg .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+svg .box-plain { fill: var(--soft); stroke: var(--line); stroke-width: 1.5; }
+svg .box-acc { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+svg .box-warm { fill: var(--warm-soft); stroke: var(--warm); stroke-width: 1.5; }
+svg .box-solid { fill: var(--accent); stroke: var(--accent); }
+svg .box-masked { fill: var(--masked); stroke: var(--line); stroke-width: 1.5; }
+svg .cell { fill: var(--accent); }
+svg .bar { fill: var(--accent); }
+svg .bar-warm { fill: var(--warm); }
+svg .ln { stroke: var(--muted); stroke-width: 1.6; fill: none; }
+svg .ln-acc { stroke: var(--accent); fill: none; }
+svg .ln-warm { stroke: var(--warm); stroke-width: 2; fill: none; }
+svg .ln-dash { stroke: var(--muted); stroke-width: 1.4; fill: none; stroke-dasharray: 5 5; }
+svg .hl { fill: none; stroke: var(--warm); stroke-width: 2; stroke-dasharray: 6 4; }
+svg .dot { fill: var(--muted); }
+svg .dot-acc { fill: var(--accent); }
+svg .area { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.4; stroke-dasharray: 6 5; opacity: 0.9; }
+svg .area-warm { fill: var(--warm-soft); stroke: var(--warm); stroke-width: 1.4; stroke-dasharray: 6 5; opacity: 0.9; }
+svg .divider { stroke: var(--line); stroke-width: 1.5; }
+svg .mk { fill: var(--muted); }
+svg .mk-acc { fill: var(--accent); }
+
+/* CSS diagrams */
+.dg { display: flex; flex-direction: column; gap: 14px; overflow-x: auto; font-size: 0.95rem; line-height: 1.5; padding-block: 4px; }
+.dg-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dg-row.center { justify-content: center; }
+.dg-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 28px; }
+.dg-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.dg-label { font-size: 0.82rem; color: var(--muted); }
+.dg-title { font-family: var(--font-display); font-weight: 700; }
+.dg-note { font-size: 0.85rem; color: var(--muted); }
+.dg-warn { color: var(--warm); font-weight: 700; }
+.arrow { color: var(--muted); text-align: center; line-height: 1; font-size: 1.1rem; }
+.tok { display: inline-flex; align-items: center; justify-content: center; padding: 6px 12px; border: 1.5px solid var(--line); border-radius: 6px; background: var(--surface); white-space: nowrap; min-width: 3em; }
+.tok.mono, .blk.mono { font-family: var(--font-mono); font-size: 0.85rem; }
+.tok.acc, .blk.acc { background: var(--accent-soft); border-color: var(--accent); }
+.tok.warm, .blk.warm { background: var(--warm-soft); border-color: var(--warm); }
+.tok.plain, .blk.plain { background: var(--soft); }
+.tok.solid, .blk.solid { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 700; }
+.tok.hl { outline: 2px dashed var(--warm); outline-offset: 3px; }
+.tok.chip { border-radius: 999px; font-size: 0.85rem; padding: 3px 10px; min-width: 0; }
+.tok.ghost { border-color: transparent; background: none; color: var(--muted); }
+.blk { border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px 14px; text-align: center; font-weight: 700; }
+.vec { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; height: 22px; width: 84px; }
+.vec.short { grid-template-columns: repeat(4, 1fr); width: 44px; }
+.vec i { background: var(--accent); border-radius: 2px; }
+.vec.hl { outline: 2px dashed var(--warm); outline-offset: 4px; border-radius: 3px; }
+.tokcols { display: grid; gap: 8px; }
+.tokcols.compact { gap: 6px; }
+.tokcols.compact .tok { padding: 5px 7px; min-width: 0; font-size: 0.88rem; }
+.tokcols.compact .vec.short { width: 36px; }
+.tokcol { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.layer { display: grid; grid-template-columns: 3.6em 1fr 1fr; gap: 8px; align-items: center; border: 1.5px solid var(--line); border-radius: 8px; padding: 8px; }
+.layer .no { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); text-align: right; }
+.layer .blk { font-weight: 400; padding: 8px; }
+.stack-flow { display: flex; flex-direction: column; gap: 8px; max-width: 460px; width: 100%; margin: 0 auto; }
+.mask { display: grid; grid-template-columns: 2.6em repeat(5, 2.4em); gap: 3px; font-size: 0.85rem; }
+.mask > span { display: flex; align-items: center; justify-content: center; height: 2.4em; }
+.mask .on { background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: 3px; }
+.mask .off { background: var(--masked); border: 1.5px solid var(--line); border-radius: 3px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.82rem; color: var(--muted); align-items: center; }
+.legend .sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
+.bars { display: grid; grid-template-columns: auto minmax(120px, 1fr) 3em; gap: 6px 10px; align-items: center; font-size: 0.9rem; }
+.track { height: 16px; }
+.fill { height: 100%; background: var(--accent); border-radius: 3px; }
+.fill.dim { opacity: 0.55; }
+.bars .pct { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.85rem; }
+.funnel { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.funnel .blk { width: 100%; }
+.funnel .step { font-size: 0.85rem; color: var(--muted); }
+
+.part { display: flex; flex-direction: column; gap: 6px; margin-bottom: -40px; }
+.part-label { font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.12em; color: var(--accent); font-weight: 600; }
+.part-title { font-family: var(--font-display); font-size: 1.9rem; font-weight: 700; line-height: 1.3; }
+.toc .toc-part { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; color: var(--accent); padding: 12px 0 4px; }
+@media (max-width: 1079px) { .toc .toc-part { flex-basis: 100%; padding: 8px 0 0; } }
+.hub { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.hub-in { display: flex; align-items: center; gap: 8px; }
+.hub-out { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 280px; }
+.hub-row { display: grid; grid-template-columns: 13em 1.2em minmax(0, 1fr); align-items: center; gap: 8px; font-size: 0.92rem; }
+.hub-row .tok { justify-content: flex-start; font-size: 0.88rem; }
+
+/* deep-dive part: more breathing room */
+main > .stack > .deep { gap: 30px; }
+main > .stack > .deep + .deep { margin-top: 40px; }
+.deep > h2 { margin-bottom: 4px; }
+.deep .sub { gap: 20px; }
+.deep > .sub + .sub, .deep > figure + .sub, .deep > p + .sub, .deep > .table-wrap + .sub { padding-top: 22px; }
+.deep h3 { font-size: 1.2rem; }
+.deep figure { padding-block: 28px 20px; }
+.deep .callout { margin-block: 8px; }
+.deep ol, .deep ul { gap: 10px; }
+.deep .table-wrap { margin-block: 4px; }
+
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="ar-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="mk-acc" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+</svg>
+
+<div class="layout">
+  <nav class="toc" aria-label="目次">
+    <p>目次</p>
+    <ol>
+      <li class="toc-part">全体像</li>
+      <li><a href="#about">BERT とは</a></li>
+      <li><a href="#can">BERT でできること</a></li>
+      <li><a href="#ideas">ハッカソンのアイデア例</a></li>
+      <li class="toc-part">実際に使う</li>
+      <li><a href="#models">すぐ使える公開モデル</a></li>
+      <li><a href="#catalog">用途別のおすすめモデル</a></li>
+      <li><a href="#limits">制約と LLM との役割分担</a></li>
+      <li class="toc-part">しくみを深掘り</li>
+      <li><a href="#tokens">トークンとベクトル</a></li>
+      <li><a href="#attention">Attention と Transformer</a></li>
+      <li><a href="#encdec">Encoder と Decoder</a></li>
+      <li><a href="#bert">BERT のしくみ</a></li>
+      <li><a href="#uses">5つの使い方のしくみ</a></li>
+      <li><a href="#refs">参考資料</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="stack">
+
+      <header class="sub">
+        <p class="eyebrow">今夜のハッカソン向け</p>
+        <h1>BERTのしくみと使い方</h1>
+        <p class="lead">今夜のハッカソンで使う BERT について、まず「何ができるか」を紹介し、そのあと仕組みを順に深掘りします。専門用語は、出てきたところで説明します。</p>
+      </header>
+
+      <div class="part">
+        <p class="part-title">全体像：BERT で何ができるか</p>
+      </div>
+
+      <section id="about">
+        <h2>BERT とは</h2>
+        <p><span class="term">BERT</span> は、2018年に Google が発表した言語モデルです。文章を読んで、その意味を数値の並び（ベクトル）で表すのが得意です。</p>
+        <p>もう少し具体的に言うと、BERT は文章を単語より細かい単位（<span class="term">トークン</span>）に区切り、<strong>トークンごとに高次元のベクトル</strong>（BERT の場合は768個の数値の並び）を出力します。このベクトルには前後の文脈が反映されていて、同じ「かける」でも「電話をかける」と「眼鏡をかける」では違うベクトルになります。</p>
+        <figure>
+          <div class="dg" role="img" aria-label="BERTは「電話」「を」「かける」のトークンごとに、文脈を反映したベクトルを出す">
+            <div class="dg-col">
+                <p class="dg-title">BERT：トークンごとにベクトル</p>
+                <div class="tokcols" style="grid-template-columns:repeat(3,84px);justify-content:start;justify-items:center">
+                  <span class="tok">電話</span><span class="tok">を</span><span class="tok">かける</span>
+                  <span class="arrow">↓</span><span class="arrow">↓</span><span class="arrow">↓</span>
+                  <div class="blk acc" style="grid-column:1/-1;justify-self:stretch">BERT</div>
+                  <span class="arrow">↓</span><span class="arrow">↓</span><span class="arrow">↓</span>
+                  <span class="vec"><i style="opacity:0.2"></i><i style="opacity:0.7"></i><i style="opacity:0.85"></i><i style="opacity:0.15"></i><i style="opacity:0.4"></i><i style="opacity:0.6"></i><i style="opacity:0.9"></i><i style="opacity:0.3"></i></span><span class="vec"><i style="opacity:0.3"></i><i style="opacity:0.35"></i><i style="opacity:0.2"></i><i style="opacity:0.7"></i><i style="opacity:0.2"></i><i style="opacity:0.45"></i><i style="opacity:0.3"></i><i style="opacity:0.2"></i></span><span class="vec"><i style="opacity:0.6"></i><i style="opacity:0.2"></i><i style="opacity:0.8"></i><i style="opacity:0.5"></i><i style="opacity:0.9"></i><i style="opacity:0.3"></i><i style="opacity:0.4"></i><i style="opacity:0.7"></i></span>
+                </div>
+                <p class="dg-note">3トークン → 3本のベクトル（各768次元）</p>
+              </div>
+          </div>
+        </figure>
+        <p>ChatGPT や Claude のような LLM（大規模言語モデル）と同じ Transformer という技術をもとにしていますが、役割が違います。LLM が文章を<strong>書く</strong>モデルなのに対して、BERT は文章を<strong>読んで理解する</strong>モデルです。</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th></th><th>BERT</th><th>LLM（GPT、Claude など）</th></tr></thead>
+            <tbody>
+              <tr><td><strong>得意なこと</strong></td><td>文章を読んで理解する（分類・検索・抽出）</td><td>文章を書く（対話・要約・コード生成）</td></tr>
+              <tr><td><strong>出力</strong></td><td>ラベル、スコア、ベクトル</td><td>文章</td></tr>
+              <tr><td><strong>大きさ</strong></td><td>約1.1億パラメータ。手元の PC でも動く</td><td>数十億〜数千億パラメータ。多くは GPU や API が必要</td></tr>
+              <tr><td><strong>速さ・コスト</strong></td><td>速い・安い</td><td>比較的重い</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>文章は書けませんが、そのかわり<strong>大量の文章を速く安く読める</strong>のが BERT の強みです。そのため、検索や分類のように「たくさん読んで判断する」部分で、今も広く使われています。</p>
+      </section>
+
+      <section id="can">
+        <h2>BERT でできること</h2>
+        <p>BERT の使い方は、大きく5つに分けられます。①〜③は1つの文を処理するもの、④と⑤は文と文を比べるものです。</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>使い方</th><th>何をするか</th><th>例</th></tr></thead>
+            <tbody>
+              <tr><td>① 文の分類</td><td>文全体にラベルを1つ付ける</td><td>感情分析（このレビューはポジティブか）、スパム判定、有害な投稿の検出、問い合わせの振り分け</td></tr>
+              <tr><td>② トークン分類</td><td>文中の単語一つひとつにラベルを付ける</td><td>人名・地名・会社名の抽出、個人情報の自動マスキング</td></tr>
+              <tr><td>③ 穴埋め</td><td>隠した単語を、前後の文脈から予測する</td><td>文脈に合う単語の予測、誤字・変換ミスの検出</td></tr>
+              <tr><td>④ 文埋め込み</td><td>文を1本のベクトルにして、意味の近さを測る</td><td>意味検索、RAG（検索した文書を LLM に渡して回答させる仕組み）の検索部分、似た文書のレコメンド、アンケートの話題分け</td></tr>
+              <tr><td>⑤ 文ペアの判定</td><td>2つの文の関係をスコアにする</td><td>検索結果の並べ替え、質問と回答がかみ合っているかの判定</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>5つとも、使っている BERT 本体は同じです。本体の出力の上に付ける小さな部品（<span class="term">ヘッド</span>）を変えることで、使い分けています。</p>
+        <figure>
+          <div class="dg" role="img" aria-label="文章をBERT本体に通し、その上に付ける部品を変えることで、文のラベル、単語ごとのラベル、穴埋めの候補、文のベクトル、2文の関連度スコアを出し分ける図">
+            <div class="hub">
+              <div class="hub-in"><span class="tok">文章</span><span class="arrow">→</span><span class="blk acc">BERT 本体<br><span class="dg-note">（共通）</span></span><span class="arrow">→</span></div>
+              <div class="hub-out">
+                <div class="hub-row"><span class="tok warm">① 文の分類用ヘッド</span><span class="arrow">→</span><span>文全体のラベル（ポジティブ など）</span></div>
+                <div class="hub-row"><span class="tok warm">② トークン分類用ヘッド</span><span class="arrow">→</span><span>単語ごとのラベル（人名・地名 など）</span></div>
+                <div class="hub-row"><span class="tok warm">③ 穴埋め用ヘッド</span><span class="arrow">→</span><span>隠した単語の候補と確率</span></div>
+                <div class="hub-row"><span class="tok warm">④ 文埋め込み用の部品</span><span class="arrow">→</span><span>文のベクトル（検索・比較に使う）</span></div>
+                <div class="hub-row"><span class="tok warm">⑤ 文ペアの判定用ヘッド</span><span class="arrow">→</span><span>2つの文の関連度スコア</span></div>
+              </div>
+            </div>
+          </div>
+        </figure>
+        
+              <div class="sub">
+          <h3>BERT を使った埋め込みモデル</h3>
+          <p>5つのうち④文埋め込みには、専用の<strong>埋め込みモデル</strong>を使います。BERT が出すトークンごとのベクトルを1本にまとめ、文全体の意味を表すように追加で学習したモデルです。文と文の意味の近さをベクトルで比べられるので、検索や RAG によく使われています。代表的なものに、Sentence-BERT や、日本語向けの ruri-v3 などがあります。</p>
+          <figure>
+            <div class="dg" role="img" aria-label="左：BERTは「電話」「を」「かける」のトークンごとにベクトルを出す。右：BERTを使った埋め込みモデルは文全体で1本のベクトルを出す">
+              <div class="dg-split">
+                <div class="dg-col">
+                  <p class="dg-title">BERT：トークンごとにベクトル</p>
+                  <div class="tokcols" style="grid-template-columns:repeat(3,84px);justify-content:start;justify-items:center">
+                    <span class="tok">電話</span><span class="tok">を</span><span class="tok">かける</span>
+                    <span class="arrow">↓</span><span class="arrow">↓</span><span class="arrow">↓</span>
+                    <div class="blk acc" style="grid-column:1/-1;justify-self:stretch">BERT</div>
+                    <span class="arrow">↓</span><span class="arrow">↓</span><span class="arrow">↓</span>
+                    <span class="vec"><i style="opacity:0.2"></i><i style="opacity:0.7"></i><i style="opacity:0.85"></i><i style="opacity:0.15"></i><i style="opacity:0.4"></i><i style="opacity:0.6"></i><i style="opacity:0.9"></i><i style="opacity:0.3"></i></span><span class="vec"><i style="opacity:0.3"></i><i style="opacity:0.35"></i><i style="opacity:0.2"></i><i style="opacity:0.7"></i><i style="opacity:0.2"></i><i style="opacity:0.45"></i><i style="opacity:0.3"></i><i style="opacity:0.2"></i></span><span class="vec"><i style="opacity:0.6"></i><i style="opacity:0.2"></i><i style="opacity:0.8"></i><i style="opacity:0.5"></i><i style="opacity:0.9"></i><i style="opacity:0.3"></i><i style="opacity:0.4"></i><i style="opacity:0.7"></i></span>
+                  </div>
+                  <p class="dg-note">3トークン → 3本のベクトル（各768次元）</p>
+                </div>
+                <div class="dg-col">
+                  <p class="dg-title">埋め込みモデル：文全体で1本</p>
+                  <div class="tokcols" style="grid-template-columns:auto;justify-content:start;justify-items:center">
+                    <span class="tok">電話をかける</span>
+                    <span class="arrow">↓</span>
+                    <div class="blk warm">BERT を使った埋め込みモデル</div>
+                    <span class="arrow">↓</span>
+                    <span class="vec"><i style="opacity:0.5"></i><i style="opacity:0.8"></i><i style="opacity:0.3"></i><i style="opacity:0.6"></i><i style="opacity:0.7"></i><i style="opacity:0.2"></i><i style="opacity:0.9"></i><i style="opacity:0.4"></i></span>
+                  </div>
+                  <p class="dg-note">1文 → 1本のベクトル。文同士の近さを比べられる</p>
+                </div>
+              </div>
+            </div>
+          </figure>
+        </div>
+        <p>多くの用途では、すでに部品まで学習済みのモデルが公開されているので、自分で学習させなくてもすぐに試せます。このあと、アイデア例と実際に使える公開モデルを紹介し、それぞれの仕組みは後半で詳しく説明します。</p>
+      </section>
+
+      <section id="ideas">
+        <h2>ハッカソンのアイデア例</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>アイデア</th><th>使い方</th><th>内容</th></tr></thead>
+            <tbody>
+              <tr><td>RAG チャットボット</td><td>④文埋め込み ＋ ⑤文ペアの判定 ＋ LLM</td><td>社内文書や FAQ から関連する部分を検索して、LLM に回答させる</td></tr>
+              <tr><td>レビュー分析ダッシュボード</td><td>①文の分類</td><td>口コミを感情で分類して集計し、グラフにする</td></tr>
+              <tr><td>個人情報マスキング</td><td>②トークン分類</td><td>文中の人名・地名を伏せてから、LLM や外部サービスに送る</td></tr>
+              <tr><td>アンケート自動整理</td><td>④文埋め込み ＋ クラスタリング</td><td>自由記述を話題ごとにグループ分けする</td></tr>
+              <tr><td>似ている記事のレコメンド</td><td>④文埋め込み</td><td>読んだ記事とベクトルが近い記事をおすすめする</td></tr>
+              <tr><td>誤字チェッカー</td><td>③穴埋め</td><td>文脈に合わない単語を見つけて、修正候補を出す</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="part">
+        <p class="part-title">実際に使う</p>
+      </div>
+
+      <section id="models">
+        <h2>すぐ使える日本語の公開モデル</h2>
+        <p>どれも Hugging Face（機械学習モデルの共有サイト）で公開されていて、自分で追加学習しなくても使えます。表の XLM-RoBERTa や ModernBERT は、BERT を改良した同じ系統のモデルです（詳しくは後半で説明します）。</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>使い方</th><th>モデル</th><th>内容</th><th>ライセンス</th></tr></thead>
+            <tbody>
+              <tr><td>① 文の分類</td><td><a href="https://huggingface.co/christian-phu/bert-finetuned-japanese-sentiment"><code>christian-phu/bert-finetuned-japanese-sentiment</code></a></td><td>日本語の Amazon レビューで学習した感情分析（ポジティブ・中立・ネガティブ）</td><td>CC BY-SA 4.0</td></tr>
+              <tr><td>② トークン分類</td><td><a href="https://huggingface.co/tsmatz/xlm-roberta-ner-japanese"><code>tsmatz/xlm-roberta-ner-japanese</code></a></td><td>日本語の固有表現抽出（人名・組織名・地名・施設名・製品名・イベント名など）。XLM-RoBERTa ベース</td><td>MIT</td></tr>
+              <tr><td>③ 穴埋め</td><td><a href="https://huggingface.co/tohoku-nlp/bert-base-japanese-v3"><code>tohoku-nlp/bert-base-japanese-v3</code></a></td><td>東北大学の日本語 BERT。トークン化に MeCab を使う</td><td>Apache 2.0</td></tr>
+              <tr><td>④ 文埋め込み</td><td><a href="https://huggingface.co/cl-nagoya/ruri-v3-310m"><code>cl-nagoya/ruri-v3-310m</code></a></td><td>名古屋大学の日本語埋め込みモデル。ModernBERT ベース。30M〜310M の4サイズ</td><td>Apache 2.0</td></tr>
+              <tr><td>⑤ 文ペアの判定</td><td><a href="https://huggingface.co/cl-nagoya/ruri-v3-reranker-310m"><code>cl-nagoya/ruri-v3-reranker-310m</code></a></td><td>名古屋大学の日本語リランカー（検索で見つかった候補を、質問との関連度の高い順に並べ替えるモデル）。ModernBERT ベース。最大8,192トークン</td><td>Apache 2.0</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">
+          <p class="note-title">使うときの注意</p>
+          <ul>
+            <li><code>ruri-v3</code> は、文の先頭に用途を表す接頭辞を付けて使います。検索クエリには <code>検索クエリ: </code>、検索される文書には <code>検索文書: </code>、分類やクラスタリングには <code>トピック: </code> を付けます</li>
+            <li>ライセンスや詳しい使い方は、使う前に各モデルカードで確認してください</li>
+            <li>文書から答えの部分を抜き出す質問応答や、2文の矛盾判定については、日本語ですぐ使えるモデルを確認できていません</li>
+          </ul>
+        </div>
+              
+      </section>
+
+      <section id="catalog">
+        <h2>用途別のおすすめモデル</h2>
+        <p>上の表のほかに、性能と使いやすさの面でおすすめできる日本語モデルを用途ごとにまとめました（2026年10月時点）。2025年以降は、日本語でも <strong>ModernBERT</strong>（BERT を高速化し、長い入力に対応させた改良版）をもとにしたモデルが中心になっていて、ここで紹介するモデルの多くもその日本語版を土台にしています。</p>
+
+        <div class="sub">
+          <h3>④ 文埋め込み：ruri-v3 のサイズを選ぶ</h3>
+          <p>日本語の埋め込みモデルでは、名古屋大学の <a href="https://huggingface.co/cl-nagoya/ruri-v3-310m">ruri-v3</a> が性能・ライセンス（Apache 2.0）・扱いやすさのバランスで最も使いやすい選択肢です。4つのサイズがあり、小さいものでも性能の落ち方はわずかです。スコアは日本語の埋め込みベンチマーク JMTEB の平均で、モデルカードの値です。</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>モデル</th><th>パラメータ数</th><th>JMTEB</th><th>向いている場面</th></tr></thead>
+              <tbody>
+                <tr><td><code>cl-nagoya/ruri-v3-30m</code></td><td>3,700万</td><td>74.51</td><td>CPU だけで速く動かしたいとき</td></tr>
+                <tr><td><code>cl-nagoya/ruri-v3-70m</code></td><td>7,000万</td><td>75.48</td><td>速さと精度のバランス</td></tr>
+                <tr><td><code>cl-nagoya/ruri-v3-130m</code></td><td>1.3億</td><td>76.55</td><td>速さと精度のバランス</td></tr>
+                <tr><td><code>cl-nagoya/ruri-v3-310m</code></td><td>3.2億</td><td>77.24</td><td>精度を優先したいとき（GPU があると快適）</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sub">
+          <h3>④ 文埋め込み：さらに軽さを優先するなら</h3>
+          <p>個人開発者の六花牡丹さん（<a href="https://huggingface.co/RikkaBotan">RikkaBotan</a>）が公開している <a href="https://huggingface.co/RikkaBotan/stable-static-embedding-fast-retrieval-mrl-ja"><code>RikkaBotan/stable-static-embedding-fast-retrieval-mrl-ja</code></a> は、約1,700万パラメータの非常に軽い日本語の埋め込みモデルです（Apache 2.0）。ruri-v3 のいちばん小さいサイズよりもさらに小さく、CPU だけで大量の文書を速くベクトル化したいときに向いています。日本語と英語の両方に対応した版もあります。</p>
+          <p>Transformer を使わず、各トークンのベクトルを平均して文のベクトルを作る「静的埋め込み」という方式なので、文脈を見る ruri-v3 などと比べると精度は下がりやすい点に注意してください。読み込み時に <code>trust_remote_code=True</code> の指定が必要です。</p>
+        </div>
+
+        <div class="sub">
+          <h3>⑤ 文ペアの判定：軽いリランカーを使うなら</h3>
+          <p>上の表の ruri-v3-reranker-310m は精度重視のモデルです。手元の PC で速く動かしたいときは、個人開発者の hotchpotch さんが公開している <a href="https://huggingface.co/hotchpotch/japanese-reranker-tiny-v2">japanese-reranker v2</a> シリーズが使えます。ruri-v3 の土台モデルをもとにしていて、tiny・xsmall・small・base の4サイズがあります。いちばん小さい tiny は約3,000万パラメータで、CPU や Mac でも実用的な速さで動きます（MIT ライセンス）。</p>
+        </div>
+
+        <div class="sub">
+          <h3>自分のデータで追加学習（ファインチューニング）するなら</h3>
+          <p>分類などを自分のデータで学習させたいときは、SB Intuitions の <a href="https://huggingface.co/sbintuitions/modernbert-ja-310m">ModernBERT-Ja</a>（<code>sbintuitions/modernbert-ja-310m</code> など、30M〜310M の4サイズ、MIT ライセンス）が土台として使えます。日本語と英語の約4.1兆トークンで学習されていて、最大8,192トークンの長い文章を扱えます。ただし、トークンの区切り方の都合で、②トークン分類（固有表現抽出など）は苦手とされています。②トークン分類を自分で学習させるなら、MeCab で単語に区切る東北大学の BERT（<code>tohoku-nlp/bert-base-japanese-v3</code>）のほうが向いています。</p>
+        </div>
+      </section>
+
+      <section id="limits">
+        <h2>制約と、LLM との役割分担</h2>
+        <div class="sub">
+          <h3>BERT の制約</h3>
+          <ul>
+            <li><strong>文章の生成はできない</strong>：文章を作る部分は LLM に任せる</li>
+            <li><strong>入力の長さに上限がある</strong>：元の BERT は512トークン（トークンは文章を区切った単位）まで。長い文書は分割して扱う（ModernBERT 系はもっと長い入力を扱える）</li>
+            <li><strong>学習データと違う分野には弱いことがある</strong>：専門用語の多い文章などでは精度が落ちることがある</li>
+            <li><strong>細かい意味の違いに弱いことがある</strong>：④文埋め込みでは、否定の有無や語順の違いがベクトルの差に出にくいことがある</li>
+          </ul>
+        </div>
+        <div class="sub">
+          <h3>LLM と比べた BERT の利点</h3>
+          <ul>
+            <li><strong>軽い</strong>：パラメータ数が LLM より桁違いに少なく、手元の PC でも動く</li>
+            <li><strong>速い・安い</strong>：大量のデータを短時間で処理でき、API の利用料もかからない</li>
+            <li><strong>出力が安定している</strong>：同じ入力には同じ出力を返す</li>
+          </ul>
+        </div>
+        <div class="sub">
+          <h3>LLM との組み合わせ方</h3>
+          <p>BERT と LLM は、どちらか一方を選ぶものではなく、組み合わせて使うのが基本です。大量の文章を読んで「探す」「分ける」「抜き出す」作業は、速くて安い BERT が担当します。その結果を受け取って文章を書く作業は、LLM が担当します。</p>
+          <p>たとえば RAG のチャットボットでは、BERT 系の埋め込みモデルで質問に関係する文書を探し、見つかった文書をもとに LLM が回答を書きます。個人情報を含む文章を LLM に送る前に、BERT で人名や住所を見つけて伏せておく、という使い方もできます。</p>
+        </div>
+      </section>
+
+      <div class="part">
+        <p class="part-title">しくみを深掘りする</p>
+        <p class="lead">ここからは、BERT がなぜこれらのことをできるのかを、文章が数値になるところから順に説明します。</p>
+      </div>
+
+      <section id="tokens" class="deep">
+        <h2>言語モデルはテキストをどう扱うか</h2>
+
+        <div class="sub">
+          <h3>トークン化：文章を小さな単位に区切る</h3>
+          <p>モデルは文字列をそのまま扱えません。まず文章を<span class="term">トークン</span>という単位に区切ります。トークンは単語とは限らず、単語より細かい断片（サブワード）になることもあります。</p>
+          <pre>「自然言語処理は楽しい」 → ["自然", "言語", "処理", "は", "楽しい"]</pre>
+          <p>モデルごとに<strong>語彙</strong>（扱えるトークンの一覧、数万種類程度）が決まっていて、各トークンには ID 番号が振られています。</p>
+        </div>
+
+        <div class="sub">
+          <h3>埋め込み：トークンをベクトルにする</h3>
+          <p>ID 番号のままでは計算できないので、各トークンを数百次元の数値の並び（<span class="term">ベクトル</span>）に変換します。この変換を<span class="term">埋め込み（embedding）</span>と呼びます。BERT の場合は、1トークンあたり768個の数値です。</p>
+          <p>ただし、この段階のベクトルは「そのトークン単体」の意味しか表していません。辞書を引くのと同じで、文脈は考慮されません。下の図では、ベクトルの各数値の大きさを色の濃さで表しています。</p>
+        </div>
+
+        <figure>
+          <div class="dg" role="img" aria-label="「眼鏡をかける」と「電話をかける」の各トークンをベクトルに変換すると、「かける」はどちらの文でも同じベクトルになる図">
+            <div class="dg-split">
+              <div class="dg-col">
+                <p class="dg-label">文A：眼鏡をかける</p>
+                <div class="tokcols" style="grid-template-columns:repeat(3,1fr)">
+                  <div class="tokcol"><span class="tok">眼鏡</span><span class="arrow">↓</span><span class="vec"><i style="opacity:.9"></i><i style="opacity:.25"></i><i style="opacity:.6"></i><i style="opacity:.4"></i><i style="opacity:.8"></i><i style="opacity:.15"></i><i style="opacity:.5"></i><i style="opacity:.3"></i></span></div>
+                  <div class="tokcol"><span class="tok">を</span><span class="arrow">↓</span><span class="vec"><i style="opacity:.3"></i><i style="opacity:.35"></i><i style="opacity:.2"></i><i style="opacity:.7"></i><i style="opacity:.2"></i><i style="opacity:.45"></i><i style="opacity:.3"></i><i style="opacity:.2"></i></span></div>
+                  <div class="tokcol"><span class="tok">かける</span><span class="arrow">↓</span><span class="vec hl"><i style="opacity:.5"></i><i style="opacity:.9"></i><i style="opacity:.15"></i><i style="opacity:.6"></i><i style="opacity:.3"></i><i style="opacity:.8"></i><i style="opacity:.2"></i><i style="opacity:.7"></i></span></div>
+                </div>
+              </div>
+              <div class="dg-col">
+                <p class="dg-label">文B：電話をかける</p>
+                <div class="tokcols" style="grid-template-columns:repeat(3,1fr)">
+                  <div class="tokcol"><span class="tok">電話</span><span class="arrow">↓</span><span class="vec"><i style="opacity:.2"></i><i style="opacity:.7"></i><i style="opacity:.85"></i><i style="opacity:.15"></i><i style="opacity:.4"></i><i style="opacity:.6"></i><i style="opacity:.9"></i><i style="opacity:.3"></i></span></div>
+                  <div class="tokcol"><span class="tok">を</span><span class="arrow">↓</span><span class="vec"><i style="opacity:.3"></i><i style="opacity:.35"></i><i style="opacity:.2"></i><i style="opacity:.7"></i><i style="opacity:.2"></i><i style="opacity:.45"></i><i style="opacity:.3"></i><i style="opacity:.2"></i></span></div>
+                  <div class="tokcol"><span class="tok">かける</span><span class="arrow">↓</span><span class="vec hl"><i style="opacity:.5"></i><i style="opacity:.9"></i><i style="opacity:.15"></i><i style="opacity:.6"></i><i style="opacity:.3"></i><i style="opacity:.8"></i><i style="opacity:.2"></i><i style="opacity:.7"></i></span></div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <p class="dg-warn">「かける」はどちらの文でも同じベクトル</p>
+              <p class="dg-note">意味は違うのに、この段階では区別できない</p>
+            </div>
+          </div>
+        </figure>
+
+        <p>同じ「かける」でも、「電話をかける」と「眼鏡をかける」では意味が違います。<strong>文脈に応じてベクトルを変える</strong>仕組みが、次に説明する Attention です。</p>
+      </section>
+
+      <section id="attention" class="deep">
+        <h2>Attention と Transformer</h2>
+
+        <div class="sub">
+          <h3>Attention：周りのトークンから情報を集める</h3>
+          <p><span class="term">Attention</span> は、各トークンが「文中の他のトークンをどれだけ参考にするか」の割合を計算し、その割合に応じて他のトークンの情報を自分のベクトルに混ぜ込む仕組みです。</p>
+        </div>
+
+        <figure>
+          <div class="fig-scroll">
+            <svg viewBox="0 0 720 270" role="img" aria-label="「かける」が「眼鏡」を70%、「を」を20%、自分自身を10%参照し、その結果「かける」のベクトルが装着する寄りの意味になる図">
+              <text x="20" y="24" class="t-muted">「かける」から見た参照の割合</text>
+              <path d="M548,148 Q360,20 172,148" class="ln-acc" stroke-width="10" stroke-opacity=".85" marker-end="url(#ar-acc)"/>
+              <path d="M548,148 Q460,92 372,148" class="ln-acc" stroke-width="4" stroke-opacity=".85" marker-end="url(#ar-acc)"/>
+              <path d="M545,148 C525,104 595,104 575,146" class="ln-acc" stroke-width="2" marker-end="url(#ar-acc)"/>
+              <text x="360" y="72" text-anchor="middle" class="t-acc">70%</text>
+              <text x="430" y="116" text-anchor="middle" class="t-acc">20%</text>
+              <text x="612" y="116" class="t-acc">10%</text>
+              <rect x="110" y="150" width="100" height="36" rx="6" class="box"/><text x="160" y="173" text-anchor="middle">眼鏡</text>
+              <rect x="310" y="150" width="100" height="36" rx="6" class="box"/><text x="360" y="173" text-anchor="middle">を</text>
+              <rect x="510" y="150" width="100" height="36" rx="6" class="box-warm"/><text x="560" y="173" text-anchor="middle" class="t-bold">かける</text>
+              <line x1="560" y1="188" x2="560" y2="212" class="ln" marker-end="url(#ar)"/>
+              <rect x="420" y="214" width="280" height="40" rx="6" class="box-acc"/>
+              <text x="560" y="239" text-anchor="middle">新しい「かける」＝「装着する」寄り</text>
+              <text x="20" y="232" class="t-muted">眼鏡の情報を多く混ぜ込んだ結果、</text>
+              <text x="20" y="252" class="t-muted">文脈に合った意味のベクトルになる</text>
+            </svg>
+          </div>
+        </figure>
+
+        <p>どのトークンをどれだけ参照するかは固定ではなく、トークン同士の組み合わせから毎回計算されます。その計算方法そのものを、大量のテキストから学習します。文中のトークン同士で参照し合うので、<span class="term">Self-Attention（自己注意）</span>とも呼ばれます。</p>
+
+        <div class="sub">
+          <h3>位置の情報を加える</h3>
+          <p>Attention はそれだけではトークンの<strong>順番</strong>を区別できません。「犬が猫を追う」と「猫が犬を追う」が同じに見えてしまいます。そこで、各トークンのベクトルに「何番目のトークンか」を表す位置の情報を加えてから Attention に通します。</p>
+        </div>
+
+        <div class="sub">
+          <h3>層を重ねる：Transformer</h3>
+          <p>「Attention で周りから情報を集める → 各トークンのベクトルを個別に変換する」を1つの<strong>層</strong>として、これを何層も積み重ねます。層を重ねるほど、より複雑な文脈を反映したベクトルになっていきます。下の図では、下から上へ処理が進みます。</p>
+        </div>
+
+        <figure>
+          <div class="dg" role="img" aria-label="トークンのベクトルに位置の情報を加え、Attentionと変換からなる層を12層通すと、文脈を反映したベクトルが出てくる図">
+            <div class="stack-flow">
+              <div class="blk acc">文脈を反映したベクトル（トークンごと）</div>
+              <div class="arrow">↑</div>
+              <div class="layer"><span class="no">層 12</span><span class="blk acc">Attention</span><span class="blk plain">変換</span></div>
+              <div class="arrow">︙</div>
+              <div class="layer"><span class="no">層 2</span><span class="blk acc">Attention</span><span class="blk plain">変換</span></div>
+              <div class="arrow">↑</div>
+              <div class="layer"><span class="no">層 1</span><span class="blk acc">Attention</span><span class="blk plain">変換</span></div>
+              <div class="arrow">↑</div>
+              <div class="blk plain" style="font-weight:400">トークンのベクトル ＋ 位置の情報</div>
+            </div>
+            <div class="legend">
+              <span><span class="sw" style="background:var(--accent-soft);border:1.5px solid var(--accent)"></span>Attention：周りのトークンから情報を集める</span>
+              <span><span class="sw" style="background:var(--soft);border:1.5px solid var(--line)"></span>変換：各トークンのベクトルを個別に加工する</span>
+            </div>
+          </div>
+        </figure>
+
+        <p>この構造が、2017年に Google が発表した <span class="term">Transformer</span> です（論文「Attention Is All You Need」）。BERT も GPT も Claude も、現在のほとんどの言語モデルはこれをもとにしています。</p>
+      </section>
+
+      <section id="encdec" class="deep">
+        <h2>Encoder と Decoder</h2>
+
+        <div class="sub">
+          <h3>本来の意味：ベクトルにする側と、ベクトルから戻す側</h3>
+          <p>一般的な意味では、<span class="term">Encoder</span> は人間が扱えるもの（文章や画像）をベクトルに変換する部分、<span class="term">Decoder</span> はベクトルから人間が扱えるものを作り出す部分です。</p>
+          <p>元の Transformer は翻訳のためのモデルで、まさにこの2つの部分で構成されていました。Encoder が日本語の文を読んでベクトルにし、Decoder がそのベクトルを参照しながら英語の文を1トークンずつ生成します。下の図の下段は、このあと説明する Decoder-only モデルが文章を生成する様子です。</p>
+        </div>
+
+        <figure>
+          <div class="fig-scroll">
+            <svg viewBox="0 0 720 260" role="img" aria-label="上段：元のTransformerでは、日本語の文をEncoderがベクトルにし、Decoderが英語の文を作る。下段：Decoder-onlyモデルは次のトークンを予測し、入力に付け足して繰り返す">
+              <text x="20" y="22" class="t-muted">元の Transformer（翻訳）</text>
+              <rect x="20" y="36" width="110" height="40" rx="6" class="box-plain"/><text x="75" y="61" text-anchor="middle">猫が好き</text>
+              <line x1="132" y1="56" x2="156" y2="56" class="ln" marker-end="url(#ar)"/>
+              <rect x="158" y="36" width="120" height="40" rx="6" class="box-acc"/><text x="218" y="61" text-anchor="middle" class="t-bold">Encoder</text>
+              <line x1="280" y1="56" x2="304" y2="56" class="ln" marker-end="url(#ar)"/>
+              <g transform="translate(310,45)"><rect x="0" width="10" height="22" class="cell" fill-opacity=".8"/><rect x="12" width="10" height="22" class="cell" fill-opacity=".3"/><rect x="24" width="10" height="22" class="cell" fill-opacity=".6"/><rect x="36" width="10" height="22" class="cell" fill-opacity=".2"/><rect x="48" width="10" height="22" class="cell" fill-opacity=".9"/><rect x="60" width="10" height="22" class="cell" fill-opacity=".4"/><rect x="72" width="10" height="22" class="cell" fill-opacity=".7"/><rect x="84" width="10" height="22" class="cell" fill-opacity=".25"/></g>
+              <line x1="408" y1="56" x2="432" y2="56" class="ln" marker-end="url(#ar)"/>
+              <rect x="434" y="36" width="120" height="40" rx="6" class="box-warm"/><text x="494" y="61" text-anchor="middle" class="t-bold">Decoder</text>
+              <line x1="556" y1="56" x2="580" y2="56" class="ln" marker-end="url(#ar)"/>
+              <rect x="582" y="36" width="120" height="40" rx="6" class="box-plain"/><text x="642" y="61" text-anchor="middle">I like cats</text>
+              <text x="218" y="98" text-anchor="middle" class="t-muted">文を読んでベクトルに</text>
+              <text x="356" y="98" text-anchor="middle" class="t-muted">ベクトル</text>
+              <text x="494" y="98" text-anchor="middle" class="t-muted">ベクトルから文を作る</text>
+              <line x1="20" y1="122" x2="700" y2="122" class="divider"/>
+              <text x="20" y="148" class="t-muted">Decoder-only（GPT など）：次のトークンを予測して付け足す</text>
+              <rect x="20" y="162" width="150" height="40" rx="6" class="box-plain"/><text x="95" y="187" text-anchor="middle">私 は 猫 が</text>
+              <line x1="172" y1="182" x2="198" y2="182" class="ln" marker-end="url(#ar)"/>
+              <rect x="200" y="162" width="200" height="40" rx="6" class="box-warm"/><text x="300" y="187" text-anchor="middle" class="t-bold">Decoder-only モデル</text>
+              <line x1="402" y1="182" x2="428" y2="182" class="ln" marker-end="url(#ar)"/>
+              <rect x="430" y="162" width="80" height="40" rx="6" class="box-acc"/><text x="470" y="187" text-anchor="middle" class="t-bold">好き</text>
+              <path d="M470,204 C470,240 95,240 95,206" class="ln" marker-end="url(#ar)"/>
+              <text x="282" y="252" text-anchor="middle" class="t-muted">予測したトークンを入力に付け足して、また予測</text>
+              <text x="528" y="180" class="t-muted">繰り返すと</text>
+              <text x="528" y="198" class="t-muted">文章になる</text>
+            </svg>
+          </div>
+        </figure>
+
+        <div class="sub">
+          <h3>Encoder-only / Decoder-only では、この説明がずれる</h3>
+          <p>その後、どちらか一方の部分だけを使うモデルが主流になりました。BERT は <span class="term">Encoder-only</span>、GPT や Claude は <span class="term">Decoder-only</span> です。</p>
+          <p>ところが、これらを「ベクトルにする側 / ベクトルから戻す側」で説明しようとすると、うまくいきません。</p>
+          <ul>
+            <li><strong>Decoder-only も入力をベクトルにしている</strong>：GPT も入力をトークンのベクトルにして層に通しています。1つのモデルの中で「読む」と「書く」の両方をしています</li>
+            <li><strong>Encoder-only も人間が読める答えを出せる</strong>：BERT も、前半で紹介した「ヘッド」を付ければ「ポジティブ」のようなラベルや単語を出力できます</li>
+          </ul>
+          <p>つまり Encoder-only / Decoder-only という名前は、<strong>元の Transformer の Encoder 側と Decoder 側、どちらの作りを受け継いでいるか</strong>を表しています。作りの違いは、主に Attention で参照できる範囲です。</p>
+        </div>
+
+        <div class="sub">
+          <h3>実際の違い：Attention で参照できる範囲</h3>
+          <p>Encoder は、各トークンが文中の<strong>すべて</strong>のトークン（前も後ろも）を参照できます。Decoder は、各トークンが<strong>自分より前</strong>のトークンしか参照できません。後ろを参照できないようにすることを、<span class="term">マスク</span>と呼びます。</p>
+        </div>
+
+        <figure>
+          <div class="dg" role="img" aria-label="Encoderではすべてのトークンが互いに参照できる。Decoderでは各トークンが自分より前のトークンだけを参照できる">
+            <div class="dg-split">
+              <div class="dg-col" style="align-items:center">
+                <p class="dg-title">Encoder（BERT）：前後すべて</p>
+                <div class="mask">
+                  <span></span><span>私</span><span>は</span><span>猫</span><span>が</span><span>好き</span>
+                  <span>私</span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+                  <span>は</span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+                  <span>猫</span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+                  <span>が</span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+                  <span>好き</span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+                </div>
+              </div>
+              <div class="dg-col" style="align-items:center">
+                <p class="dg-title">Decoder（GPT）：自分より前だけ</p>
+                <div class="mask">
+                  <span></span><span>私</span><span>は</span><span>猫</span><span>が</span><span>好き</span>
+                  <span>私</span><span class="on"></span><span class="off"></span><span class="off"></span><span class="off"></span><span class="off"></span>
+                  <span>は</span><span class="on"></span><span class="on"></span><span class="off"></span><span class="off"></span><span class="off"></span>
+                  <span>猫</span><span class="on"></span><span class="on"></span><span class="on"></span><span class="off"></span><span class="off"></span>
+                  <span>が</span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="off"></span>
+                  <span>好き</span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+                </div>
+              </div>
+            </div>
+            <div class="legend">
+              <span><span class="sw" style="background:var(--accent-soft);border:1.5px solid var(--accent)"></span>参照できる</span>
+              <span><span class="sw" style="background:var(--masked);border:1.5px solid var(--line)"></span>参照できない（マスク）</span>
+              <span>行：参照する側のトークン　列：参照される側のトークン</span>
+            </div>
+          </div>
+        </figure>
+
+        <p>Decoder が後ろを参照できないのは、「次のトークンを予測する」ことで学習と生成をするためです。予測の答えになる後ろのトークンが見えていると、学習が成り立ちません。逆に言えば、この制限があるからこそ、次のトークンを予測しては付け足すことを繰り返して、1トークンずつ文章を生成できます。</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th></th><th>Encoder-only（BERT など）</th><th>Decoder-only（GPT、Claude など）</th></tr></thead>
+            <tbody>
+              <tr><td><strong>参照できる範囲</strong></td><td>前後すべて（双方向）</td><td>自分より前だけ（一方向）</td></tr>
+              <tr><td><strong>出力</strong></td><td>入力全体を読んで、各トークンのベクトルを一度に出す</td><td>次のトークンを予測して付け足すことを繰り返す</td></tr>
+              <tr><td><strong>得意なこと</strong></td><td>文章の理解（分類、検索、抽出）</td><td>文章の生成（対話、要約、コード）</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="bert" class="deep">
+        <h2>BERT のしくみ</h2>
+
+        <div class="sub">
+          <h3>構造</h3>
+          <p><span class="term">BERT</span>（Bidirectional Encoder Representations from Transformers）は、2018年に Google が発表した Encoder-only のモデルです。名前の「Bidirectional」は、Attention が双方向であることを指しています。</p>
+          <div class="table-wrap">
+            <table>
+              <tbody>
+                <tr><td><strong>層の数</strong></td><td>12層（Base サイズ。Large は24層）</td></tr>
+                <tr><td><strong>ベクトルの次元</strong></td><td>1トークンあたり768</td></tr>
+                <tr><td><strong>パラメータ数</strong></td><td>約1.1億（GPT 系の LLM と比べて桁違いに小さい）</td></tr>
+                <tr><td><strong>入力できる長さ</strong></td><td>512トークンまで</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sub">
+          <h3>特殊トークン</h3>
+          <p>BERT への入力には、文章のトークンに加えて、特別な役割を持つトークンを入れます。</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>トークン</th><th>役割</th></tr></thead>
+              <tbody>
+                <tr><td><code>[CLS]</code></td><td>入力の先頭に必ず置く。<strong>文全体を代表するベクトル</strong>として使われる</td></tr>
+                <tr><td><code>[SEP]</code></td><td>文の区切り。2つの文を入力するときは、文の間と最後に置く</td></tr>
+                <tr><td><code>[MASK]</code></td><td>「ここに入る単語を当てて」という穴埋めの印</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><code>[CLS]</code> 自体には意味がありません。そのため Attention を通じて文中の全トークンから情報を集め、層を重ねるうちに文全体の要約のようなベクトルになります。</p>
+        </div>
+
+        <div class="sub">
+          <h3>事前学習：穴埋め問題（Masked Language Model）</h3>
+          <p>BERT は、大量のテキスト（Wikipedia や書籍）を使って、次の穴埋め問題を解きながら学習します。</p>
+          <ol>
+            <li>文中のトークンの <strong>15%</strong> をランダムに選び、<code>[MASK]</code> に置き換える（正確には、選んだうちの80%を <code>[MASK]</code>、10%をランダムな別のトークンにし、10%はそのまま残す）</li>
+            <li>BERT に通して、隠した位置のベクトルから元のトークンを予測させる</li>
+            <li>正解のトークンの確率が上がるように、モデル全体の重みを少しずつ調整する</li>
+          </ol>
+        </div>
+
+        <figure>
+          <div class="dg" role="img" aria-label="「私は[MASK]が好きです」をBERTに通し、MASKの位置で猫40%、犬25%、魚5%、鳥4%と予測する図">
+            <div class="dg-row center">
+              <span class="tok plain mono">[CLS]</span><span class="tok">私</span><span class="tok">は</span><span class="tok warm mono">[MASK]</span><span class="tok">が</span><span class="tok">好き</span><span class="tok">です</span><span class="tok plain mono">[SEP]</span>
+            </div>
+            <div class="arrow">↓</div>
+            <div class="blk acc">BERT（Encoder 12層）</div>
+            <div class="arrow">↓　<span class="dg-note">[MASK] の位置のベクトルだけを使う</span></div>
+            <div class="dg-split" style="align-items:center">
+              <div class="dg-col">
+                <div class="blk warm">穴埋めヘッド</div>
+                <p class="dg-note">正解は「猫」。「猫」の確率が上がるように、モデル全体の重みを調整する</p>
+              </div>
+              <div class="dg-col">
+                <p class="dg-label">[MASK] に入るトークンの確率（語彙全体、数万語のうち上位）</p>
+                <div class="bars">
+                  <strong>猫</strong><div class="track"><div class="fill" style="width:40%"></div></div><span class="pct">40%</span>
+                  <span>犬</span><div class="track"><div class="fill dim" style="width:25%"></div></div><span class="pct">25%</span>
+                  <span>魚</span><div class="track"><div class="fill dim" style="width:5%"></div></div><span class="pct">5%</span>
+                  <span>鳥</span><div class="track"><div class="fill dim" style="width:4%"></div></div><span class="pct">4%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </figure>
+
+        <p>この学習方法を <span class="term">Masked Language Model（MLM）</span>と呼びます。正解は元の文章そのものなので、人手でラベルを付ける必要がなく、いくらでも学習データを用意できます。</p>
+        <p class="callout"><strong>なぜ穴埋めで賢くなるのか</strong><code>[MASK]</code> に入る単語を当てるには、周りの文脈を理解している必要があります。この問題を大量に解くうちに、BERT は「文脈を反映したベクトルを作る」能力を身につけます。穴埋めは練習問題で、本当の目的は良いベクトルを作れるようになることです。</p>
+        <p>（元の BERT は、2つの文が本当に連続しているかを当てる課題（NSP: Next Sentence Prediction）も同時に学習していました。ただし後の研究で効果が小さいことがわかり、最近のモデルでは使われていません。）</p>
+
+        <div class="sub">
+          <h3>BERT の出力</h3>
+          <p>学習済みの BERT に文を入れると、<strong>トークンごとに、文脈を反映したベクトル</strong>が出力されます。最初にトークンをベクトルにした段階とは違い、「電話をかける」の「かける」と「眼鏡をかける」の「かける」は、ここでは別のベクトルになります。</p>
+        </div>
+
+        <div class="sub">
+          <h3>ヘッドとファインチューニング</h3>
+          <p>BERT の出力はベクトルの列なので、このままでは「この文はポジティブか」のような答えは出てきません。そこで、出力の上に目的に合わせた小さな層を付けます。この層を<span class="term">ヘッド</span>と呼びます（多くは1層の線形変換です）。事前学習で使った「穴埋めヘッド」もその一つです。</p>
+          <pre>文章 → [BERT 本体] → トークンごとのベクトル → [ヘッド] → 答え（ラベル・スコアなど）</pre>
+          <p>ヘッドを付けて、目的のタスクの正解付きデータで追加学習することを<span class="term">ファインチューニング</span>と呼びます。BERT 本体の重みも少しずつ調整されます。事前学習で文脈を理解する力がついているので、数千件程度のデータでも高い精度が出やすいのが特徴です。</p>
+          <p>今夜は、自分でファインチューニングしなくても大丈夫です。<strong>ファインチューニング済みのモデル</strong>が Hugging Face（機械学習モデルの共有サイト）に多数公開されていて、ダウンロードしてすぐ使えます。</p>
+        </div>
+
+        <div class="sub">
+          <h3>BERT 系のモデル</h3>
+          <p>BERT の発表後、同じ Encoder-only の構造のまま、学習データや学習方法を改良したモデルが多く登場しました。この資料では、これらをまとめて「BERT 系」と呼びます。使い方は BERT と同じなので、以降の説明はすべて BERT 系のモデルに当てはまります。</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>モデル</th><th>BERT からの主な違い</th></tr></thead>
+              <tbody>
+                <tr><td>RoBERTa（2019年、Meta）</td><td>より多くのデータで長く学習。NSP をやめるなど学習方法を改良</td></tr>
+                <tr><td>XLM-RoBERTa（2019年、Meta）</td><td>RoBERTa を約100言語のテキストで学習した多言語版</td></tr>
+                <tr><td>ModernBERT（2024年）</td><td>最近の LLM で使われている技術を取り入れ、高速化と長い入力（8192トークン）への対応を実現</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="uses" class="deep">
+        <h2>5つの使い方のしくみ</h2>
+        <p>最初に紹介した5つの使い方が、それぞれどう動いているかを説明します。どの使い方も、<strong>BERT の出力のどこに、どんなヘッドを付けるか</strong>の違いです。</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>使い方</th><th>使う出力</th><th>出力されるもの</th><th>用途の例</th></tr></thead>
+            <tbody>
+              <tr><td>① 文の分類</td><td><code>[CLS]</code> のベクトル</td><td>文1つにラベル1つ</td><td>感情分析、スパム判定、有害投稿の検出</td></tr>
+              <tr><td>② トークン分類</td><td>各トークンのベクトル</td><td>トークンごとにラベル</td><td>固有表現抽出、個人情報マスキング</td></tr>
+              <tr><td>③ 穴埋め</td><td><code>[MASK]</code> 位置のベクトル</td><td>単語ごとの確率</td><td>文脈に合う単語の予測、不自然な単語の検出</td></tr>
+              <tr><td>④ 文埋め込み</td><td>全トークンをまとめた1本</td><td>文1つにベクトル1本</td><td>意味検索、RAG、類似文の検出、クラスタリング</td></tr>
+              <tr><td>⑤ 文ペアの判定</td><td>2文をつなげた入力の <code>[CLS]</code></td><td>ペアにスコア1つ</td><td>検索結果の並べ替え、2文の関係の判定</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sub">
+          <h3>① 文の分類　② トークン分類</h3>
+          <p><strong>① 文の分類</strong>は、<code>[CLS]</code> のベクトルにヘッドを付けて、文全体にラベルを1つ付けます。<strong>② トークン分類</strong>は、<strong>各トークン</strong>のベクトルにヘッドを付けて、トークンごとにラベルを付けます。</p>
+        </div>
+
+        <figure>
+          <div class="dg" role="img" aria-label="左：CLSのベクトルにヘッドを付けて、文がポジティブ92%と分類される。右：各トークンにラベルを付けて、田中は人名、東京は地名、トヨタは組織と判定される">
+            <div class="dg-split">
+              <div class="dg-col">
+                <p class="dg-title">① 文の分類</p>
+                <div class="tokcols compact" style="grid-template-columns:repeat(5,auto);justify-content:start;justify-items:center">
+                  <span class="tok acc mono">[CLS]</span><span class="tok">この</span><span class="tok">店</span><span class="tok">最高</span><span class="tok">！</span>
+                  <div class="blk plain" style="grid-column:1/-1;justify-self:stretch">BERT</div>
+                  <span class="vec short"><i></i><i style="opacity:.6"></i><i style="opacity:.8"></i><i style="opacity:.4"></i></span>
+                  <span class="vec short" style="opacity:.25"><i></i><i></i><i></i><i></i></span>
+                  <span class="vec short" style="opacity:.25"><i></i><i></i><i></i><i></i></span>
+                  <span class="vec short" style="opacity:.25"><i></i><i></i><i></i><i></i></span>
+                  <span class="vec short" style="opacity:.25"><i></i><i></i><i></i><i></i></span>
+                </div>
+                <div class="dg-note">↓ [CLS] の1本だけを使う</div>
+                <div class="dg-row">
+                  <span class="blk warm">ヘッド</span><span class="arrow">→</span>
+                  <div class="bars" style="flex:1;min-width:180px">
+                    <span>ポジ</span><div class="track"><div class="fill" style="width:92%"></div></div><span class="pct">92%</span>
+                    <span>中立</span><div class="track"><div class="fill dim" style="width:6%"></div></div><span class="pct">6%</span>
+                    <span>ネガ</span><div class="track"><div class="fill dim" style="width:2%"></div></div><span class="pct">2%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="dg-col">
+                <p class="dg-title">② トークン分類</p>
+                <div class="tokcols compact" style="grid-template-columns:repeat(6,auto);justify-content:start;justify-items:center">
+                  <span class="tok">田中</span><span class="tok">さん</span><span class="tok">は</span><span class="tok">東京</span><span class="tok">の</span><span class="tok">トヨタ</span>
+                  <div class="blk plain" style="grid-column:1/-1;justify-self:stretch">BERT</div>
+                  <span class="vec short"><i></i><i style="opacity:.5"></i><i style="opacity:.8"></i><i style="opacity:.3"></i></span>
+                  <span class="vec short"><i style="opacity:.4"></i><i></i><i style="opacity:.3"></i><i style="opacity:.7"></i></span>
+                  <span class="vec short"><i style="opacity:.6"></i><i style="opacity:.3"></i><i></i><i style="opacity:.5"></i></span>
+                  <span class="vec short"><i style="opacity:.8"></i><i style="opacity:.4"></i><i style="opacity:.6"></i><i></i></span>
+                  <span class="vec short"><i style="opacity:.3"></i><i style="opacity:.7"></i><i style="opacity:.4"></i><i style="opacity:.6"></i></span>
+                  <span class="vec short"><i></i><i style="opacity:.6"></i><i style="opacity:.3"></i><i style="opacity:.8"></i></span>
+                  <span class="arrow">↓</span><span class="arrow">↓</span><span class="arrow">↓</span><span class="arrow">↓</span><span class="arrow">↓</span><span class="arrow">↓</span>
+                  <span class="tok warm chip">人名</span><span class="tok ghost chip">−</span><span class="tok ghost chip">−</span><span class="tok acc chip">地名</span><span class="tok ghost chip">−</span><span class="tok acc chip">組織</span>
+                </div>
+                <p class="dg-note">各トークンのベクトルにラベルを付ける。「−」は固有表現ではない</p>
+              </div>
+            </div>
+          </div>
+        </figure>
+
+        <div class="sub">
+          <p><strong>① 文の分類</strong>の用途は、感情分析、スパム判定、有害投稿の検出、問い合わせの振り分けなどです。出力できるラベルの種類はモデルの学習時に決まっているので、公開モデルを使うときは、どんなラベルで学習されたかをモデルカード（Hugging Face の説明ページ）で確認してください。</p>
+          <p><strong>② トークン分類</strong>の代表例は<span class="term">固有表現抽出（NER: Named Entity Recognition）</span>で、文中の人名・地名・組織名などを見つけます。実際には「人名の始まり」「人名の続き」のようにラベルを分けて付けるので、複数のトークンにまたがる名前もひとまとまりで取り出せます。見つけた範囲を伏せ字にすれば、<strong>個人情報マスキング</strong>になります。</p>
+        </div>
+
+        <div class="sub">
+          <h3>③ 穴埋め</h3>
+          <p>事前学習で使った穴埋めヘッドを、そのまま使います。<code>[MASK]</code> の位置に入るトークンの確率が、語彙全体について得られます。</p>
+          <p><strong>応用：不自然な単語の検出</strong>　文中のトークンを1つずつ隠して、元のトークンの確率を調べます。確率が極端に低いトークンは「この文脈では不自然」なので、誤字や変換ミスの候補になります。</p>
+        </div>
+
+        <div class="sub">
+          <h3>④ 文埋め込み</h3>
+          <p>文を<strong>1本のベクトル</strong>にして、ベクトル同士の近さで文の意味の近さを測ります。意味の近い文はベクトル空間の中で近くに、無関係な文は遠くに配置されます。下の図は、実際には数百次元あるベクトルを、説明のため2次元に描いたイメージです。</p>
+        </div>
+
+        <figure>
+          <div class="fig-scroll">
+            <svg viewBox="0 0 720 320" role="img" aria-label="ベクトル空間で、猫の飼い方・ネコの育て方入門・子猫の餌の選び方が近くに集まり、株価の予想・為替の動向・金利のニュースが離れた場所に集まる図">
+                            <circle cx="205" cy="160" r="88" class="area"/>
+              <circle cx="545" cy="150" r="80" class="area-warm"/>
+              <text x="205" y="62" text-anchor="middle" class="t-acc">ペットの話題</text>
+              <text x="545" y="60" text-anchor="middle" class="t-warm">経済の話題</text>
+              <line x1="190" y1="128" x2="234" y2="170" class="ln"/>
+              <line x1="190" y1="128" x2="520" y2="120" class="ln-dash"/>
+              <text x="372" y="112" text-anchor="middle" class="t-muted">遠い ＝ 似ていない</text>
+              <circle cx="190" cy="128" r="9" class="dot-acc"/>
+              <text x="182" y="108" text-anchor="middle" class="t-bold">猫の飼い方</text>
+              <circle cx="234" cy="170" r="6" class="dot"/>
+              <text x="244" y="175">ネコの育て方入門</text>
+              <circle cx="160" cy="196" r="6" class="dot"/>
+              <text x="150" y="222" text-anchor="middle">子猫の餌の選び方</text>
+              <circle cx="360" cy="236" r="6" class="dot"/>
+              <text x="370" y="241">犬のしつけ</text>
+              <circle cx="520" cy="120" r="6" class="dot"/>
+              <text x="530" y="125">株価の予想</text>
+              <circle cx="568" cy="168" r="6" class="dot"/>
+              <text x="578" y="173">為替の動向</text>
+              <circle cx="500" cy="186" r="6" class="dot"/>
+              <text x="490" y="210" text-anchor="middle">金利のニュース</text>
+              <text x="36" y="292" class="t-muted"><tspan class="t-acc">●</tspan> 検索クエリ　● 文書</text>
+            </svg>
+          </div>
+        </figure>
+
+        <div class="sub">
+          <p><strong>近さの測り方</strong>：2本のベクトルの向きがどれだけそろっているかを測る<span class="term">コサイン類似度</span>がよく使われます。1に近いほど似ていて、0に近いほど無関係です。</p>
+          <p><strong>素の BERT では不十分な理由</strong>：BERT の出力（トークンごとのベクトル）を平均して1本にすることはできます。ただ、BERT は穴埋めのために学習したモデルなので、そのベクトルが「文の意味の近さ」をうまく表すとは限りません。</p>
+          <p><strong>対照学習で「埋め込みモデル」にする</strong>：そこで、「意味の近い文のペア（質問と答え、言い換えなど）はベクトルが近くなり、無関係な文は遠くなる」ように追加学習します。この学習方法を<span class="term">対照学習</span>、こうして作ったモデルを<span class="term">埋め込みモデル</span>と呼びます。2019年の Sentence-BERT が代表的な手法です。</p>
+          <p><strong>用途</strong>：意味検索、RAG（質問に関係する文書を検索して LLM に渡し、回答させる仕組み）の検索部分、類似文・重複の検出、レコメンドなど。ベクトルを k-means などで似たもの同士に分ければ（クラスタリング）、アンケートやレビューを話題ごとに整理することもできます。</p>
+        </div>
+
+        <div class="sub">
+          <h3>⑤ 文ペアの判定</h3>
+          <p>2つの文を <code>[CLS] 文A [SEP] 文B [SEP]</code> の形で<strong>つなげて1回で入力</strong>し、<code>[CLS]</code> のベクトルからスコアを出します。④文埋め込みとの違いは、2つの文を別々に処理するか、まとめて処理するかです。</p>
+        </div>
+
+        <figure>
+          <div class="dg" role="img" aria-label="左：Bi-encoderはクエリと文書を別々にBERTでベクトル化してコサイン類似度で比べる。右：Cross-encoderは2つの文をつなげて1回でBERTに入力しスコアを出す">
+            <div class="dg-split">
+              <div class="dg-col">
+                <p class="dg-title">④ 文埋め込み（Bi-encoder）：別々にベクトル化</p>
+                <div class="dg-row"><span class="tok">猫の飼い方</span><span class="arrow">→</span><span class="tok acc">BERT</span><span class="arrow">→</span><span class="vec short"><i style="opacity:.8"></i><i style="opacity:.3"></i><i style="opacity:.7"></i><i style="opacity:.5"></i></span></div>
+                <div class="dg-row"><span class="tok">ネコの育て方入門</span><span class="arrow">→</span><span class="tok acc">BERT</span><span class="arrow">→</span><span class="vec short"><i style="opacity:.75"></i><i style="opacity:.35"></i><i style="opacity:.65"></i><i style="opacity:.5"></i></span></div>
+                <div class="dg-note">↓ 2本のベクトルの近さを測る</div>
+                <div class="dg-row"><span class="blk warm">コサイン類似度 0.9</span></div>
+                <p class="dg-note">文書側は事前に計算して保存できる → 大量の文書でも速い</p>
+              </div>
+              <div class="dg-col">
+                <p class="dg-title">⑤ 文ペアの判定（Cross-encoder）：つなげて1回で入力</p>
+                <div class="dg-row"><span class="tok plain mono">[CLS]</span><span class="tok">猫の飼い方</span><span class="tok plain mono">[SEP]</span><span class="tok">ネコの育て方入門</span><span class="tok plain mono">[SEP]</span></div>
+                <div class="arrow">↓</div>
+                <div class="blk acc">BERT</div>
+                <p class="dg-note" style="text-align:center">2つの文のトークンが Attention で直接参照し合う</p>
+                <div class="arrow">↓</div>
+                <div class="dg-row center"><span class="blk warm">関連度スコア 0.95</span></div>
+                <p class="dg-note">精度は高いが、ペアごとに毎回計算が必要 → 大量の文書には向かない</p>
+              </div>
+            </div>
+          </div>
+        </figure>
+
+        <div class="sub">
+          <p>④文埋め込みのように文を別々にベクトル化する方式を <span class="term">Bi-encoder</span>、⑤文ペアの判定のようにつなげて入力する方式を <span class="term">Cross-encoder</span> と呼びます。Cross-encoder は2つの文のトークン同士が直接参照し合えるので<strong>精度が高い</strong>一方、ペアごとに BERT を通す必要があり、文書を事前に計算しておけません。</p>
+          <p>そこで実際の検索システムでは、2つを組み合わせた<strong>二段構成</strong>がよく使われます。⑤文ペアの判定のモデルで候補を並べ替える役割を<span class="term">リランキング</span>、そのためのモデルを<span class="term">リランカー</span>と呼びます。</p>
+        </div>
+
+        <figure>
+          <div class="dg" role="img" aria-label="全文書数百万件をBi-encoderで上位100件に絞り、Cross-encoderで上位10件に並べ替えてLLMに渡す流れ">
+            <div class="funnel">
+              <div class="blk plain">全文書（数百万件）</div>
+              <div class="arrow">↓</div>
+              <div class="step">④文埋め込み（Bi-encoder）で高速に絞り込む</div>
+              <div class="blk acc" style="width:66%">上位100件</div>
+              <div class="arrow">↓</div>
+              <div class="step">⑤文ペアの判定（Cross-encoder）で正確に並べ替える</div>
+              <div class="blk solid" style="width:36%">上位10件</div>
+              <div class="arrow">↓</div>
+              <div class="dg-title">LLM に渡して回答を生成する（RAG）</div>
+            </div>
+          </div>
+        </figure>
+
+        <p>同じ Cross-encoder の仕組みで、「2つの文が矛盾していないか」「質問と回答がかみ合っているか」といった判定にも使えます。</p>
+      </section>
+
+      <section id="refs">
+        <h2>参考資料</h2>
+        <ul>
+          <li>Vaswani et al. (2017) “Attention Is All You Need” — Transformer の論文</li>
+          <li>Devlin et al. (2018) “BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding” — BERT の論文</li>
+          <li>Reimers &amp; Gurevych (2019) “Sentence-BERT” — 文埋め込みの代表的な手法</li>
+          <li>各モデルのページは、「すぐ使える日本語の公開モデル」の表のリンクから開けます</li>
+        </ul>
+        <p class="lead">図の中の数値（Attention の割合、確率、スコア）は、仕組みを説明するための例です。実際のモデルの出力ではありません。</p>
+      </section>
+
+    </div>
+  </main>
+</div>
+</body>
+</html>
