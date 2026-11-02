@@ -2,8 +2,8 @@
 
 マンデーナイトハッカソンの解説・参考資料を公開する静的Webサイトです。
 
-- サイト: https://sanamiy.github.io/monday-night-hackathon/
-- BERTのしくみと使い方: https://sanamiy.github.io/monday-night-hackathon/bert/
+- サイト: https://sanamiy.github.io/mnh-web/
+- BERTのしくみと使い方: https://sanamiy.github.io/mnh-web/bert/
 
 ## 構成
 
