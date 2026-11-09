@@ -35,9 +35,9 @@ html,body{margin:0;background:var(--bg);overscroll-behavior-y:none;color:var(--t
 #track{position:relative;z-index:1;pointer-events:none}
 .hud{position:fixed;z-index:2;font-family:"Geist Mono",monospace;font-size:10px;letter-spacing:.24em;color:color-mix(in srgb,var(--text) 70%,transparent);pointer-events:none}
 .hud.top{top:18px;left:20px;right:20px;display:flex;justify-content:space-between}
-.hud.depth{left:calc(20px + env(safe-area-inset-left));bottom:calc(20px + env(safe-area-inset-bottom))}
+.hud.depth{left:20px;bottom:20px}
 .hud.depth b{display:block;font-weight:400;font-size:22px;letter-spacing:.06em;color:var(--text);margin-top:4px}
-.hud.sec{right:calc(20px + env(safe-area-inset-right));bottom:calc(20px + env(safe-area-inset-bottom));text-align:right}
+.hud.sec{right:20px;bottom:20px;text-align:right}
 .hud.sec .bar{width:2px;height:90px;background:rgba(255,255,255,.15);margin:0 0 10px auto;position:relative}
 .hud.sec .bar i{position:absolute;left:0;top:0;width:2px;background:linear-gradient(var(--orchid),var(--periwinkle),var(--cyan),var(--mint));height:0}
 @media (max-width:640px){.hud.top span:last-child{display:none}}
