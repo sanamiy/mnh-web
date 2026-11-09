@@ -268,21 +268,29 @@ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.12,.125,.11)*(.7+.5*wB),wU*wUp*smoot
   // commuter cars: two on the standing span, one slid down the fallen span nose-first into the avenue
   {
     const carLen = 13.5, carH = 3.5, carW = 2.9;
-    const side = (lit) => canvas(1024, 256, (x, w, h) => {
-      x.fillStyle = "#8d949c"; x.fillRect(0, 0, w, h);
-      for (let i = 0; i < 400; i++){ x.fillStyle = `rgba(${20+rnd()*30},${40+rnd()*40},${30+rnd()*20},${rnd()*.25})`; x.fillRect(rnd()*w, rnd()*h, 4+rnd()*40, 2+rnd()*30); }
-      x.fillStyle = "#b8743a"; x.fillRect(0, h*.68, w, h*.07);
-      const doors = [.12, .37, .63, .88];
-      for (let i = 0; i < 10; i++){ const cx = (i + .5)/10*w; if (doors.some(d => Math.abs(d*w - cx) < 40)) continue;
-        x.fillStyle = lit.includes(i) ? "#4a3520" : "#0b0e14"; x.fillRect(cx - 34, h*.2, 68, h*.36); }
-      for (const d of doors){ x.fillStyle = "#6c737b"; x.fillRect(d*w - 30, h*.12, 60, h*.8); x.fillStyle = "#0b0e14"; x.fillRect(d*w - 22, h*.2, 18, h*.3); x.fillRect(d*w + 4, h*.2, 18, h*.3); }
-      const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, "rgba(10,30,20,.0)"); g.addColorStop(1, "rgba(10,30,20,.55)"); x.fillStyle = g; x.fillRect(0, 0, w, h);
+    // stainless commuter-car side: brushed panels, a continuous window band with pillars, four doors, one thin line, grime at the skirt
+    const DOORS = [.12, .37, .63, .88], WIN = [];
+    for (let k = 0; k < 5; k++){ const a = k ? DOORS[k-1] + .045 : .02, b = k < 4 ? DOORS[k] - .045 : .98, n = k === 0 || k === 4 ? 1 : 3;
+      for (let i = 0; i < n; i++) WIN.push([a + (b - a)*i/n + .006, (b - a)/n - .012]); }
+    const side = (lit) => canvas(2048, 512, (x, w, h) => {
+      const g0 = x.createLinearGradient(0, 0, 0, h); g0.addColorStop(0, "#a7adb2"); g0.addColorStop(.6, "#959ca2"); g0.addColorStop(1, "#7f868c"); x.fillStyle = g0; x.fillRect(0, 0, w, h);
+      for (let i = 0; i < 900; i++){ x.fillStyle = `rgba(${rnd() < .5 ? "255,255,255" : "0,0,0"},${.02 + rnd()*.03})`; x.fillRect(rnd()*w, 0, 1, h); }     // brushed steel
+      for (const sx of [.245, .5, .755]){ x.fillStyle = "rgba(0,0,0,.18)"; x.fillRect(sx*w, 0, 2, h); }                                         // panel joints
+      WIN.forEach(([a, ww], i) => { const g = x.createLinearGradient(0, h*.2, 0, h*.56); g.addColorStop(0, lit.includes(i) ? "#5a4228" : "#1a2229"); g.addColorStop(1, lit.includes(i) ? "#3a2a18" : "#070a0d");
+        x.fillStyle = "#6f767c"; x.fillRect(a*w - 4, h*.2 - 4, ww*w + 8, h*.36 + 8); x.fillStyle = g; x.fillRect(a*w, h*.2, ww*w, h*.36); });
+      for (const d of DOORS){ const dx = d*w - .03*w, dw = .06*w; x.fillStyle = "#8a9197"; x.fillRect(dx, h*.1, dw, h*.84);
+        x.fillStyle = "rgba(0,0,0,.35)"; x.fillRect(dx, h*.1, 3, h*.84); x.fillRect(dx + dw - 3, h*.1, 3, h*.84); x.fillRect(d*w - 1, h*.1, 2, h*.84);
+        x.fillStyle = "#0b0f13"; x.fillRect(dx + 10, h*.17, dw/2 - 16, h*.36); x.fillRect(d*w + 6, h*.17, dw/2 - 16, h*.36); }
+      x.fillStyle = "#a8743f"; x.fillRect(0, h*.62, w, h*.035);                                                                                // one thin line
+      const g1 = x.createLinearGradient(0, h*.55, 0, h); g1.addColorStop(0, "rgba(40,55,40,0)"); g1.addColorStop(1, "rgba(40,55,40,.6)"); x.fillStyle = g1; x.fillRect(0, h*.55, w, h*.45);
+      for (let i = 0; i < 40; i++){ const sx = rnd()*w, sy = h*(.56 + rnd()*.05), g2 = x.createLinearGradient(0, sy, 0, sy + h*.3); g2.addColorStop(0, "rgba(60,50,35,.25)"); g2.addColorStop(1, "rgba(60,50,35,0)");
+        x.fillStyle = g2; x.fillRect(sx, sy, 3 + rnd()*6, h*.3); }                                                                           // rust streaks under the windows
     });
-    const emis = (lit) => canvas(1024, 256, (x, w, h) => { x.fillStyle = "#000"; x.fillRect(0, 0, w, h);
-      for (const i of lit){ const cx = (i + .5)/10*w; x.fillStyle = "#6e5233"; x.fillRect(cx - 34, h*.2, 68, h*.36); } });
+    const emis = (lit) => canvas(2048, 512, (x, w, h) => { x.fillStyle = "#000"; x.fillRect(0, 0, w, h);
+      WIN.forEach(([a, ww], i) => { if (lit.includes(i)){ x.fillStyle = "#5e4428"; x.fillRect(a*w, h*.2, ww*w, h*.36); } }); });
     const endTex = canvas(256, 256, (x, w, h) => { x.fillStyle = "#8d949c"; x.fillRect(0, 0, w, h); x.fillStyle = "#0b0e14"; x.fillRect(20, 40, 216, 90);
       x.fillStyle = "#b8743a"; x.fillRect(0, h*.68, w, h*.07); x.fillStyle = "#2a2e34"; x.fillRect(100, 140, 56, 110); });
-    const detail = (rx, ry) => { const n = cloneTex(tex("rusty_painted_metal_nor_gl")), a = cloneTex(tex("rusty_painted_metal_arm")); for (const t of [n, a]) t.repeat.set(rx, ry); return {normalMap:n, roughnessMap:a, metalnessMap:a, roughness:1, metalness:.8}; };
+    const detail = (rx, ry) => { const n = cloneTex(tex("rusty_painted_metal_nor_gl")), a = cloneTex(tex("rusty_painted_metal_arm")); for (const t of [n, a]) t.repeat.set(rx, ry); return {normalMap:n, normalScale:new THREE.Vector2(.35, .35), roughnessMap:a, roughness:.85, metalness:.55}; };
     const topMat = pbr("rusty_metal_02", 4, 1, {metal:true}), endMat = weather(new THREE.MeshStandardMaterial({map:endTex, ...detail(1, 1)}));
     // car body: a box with softened edges and a gentle roof camber (small radii at roof edge, floor and car ends),
     // slight tumblehome below the windows. Face groups/UVs stay the box's, so the livery still maps onto the sides.
@@ -298,7 +306,7 @@ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.12,.125,.11)*(.7+.5*wB),wU*wUp*smoot
         pa.setXYZ(i, p.x, p.y, p.z); }
       g.computeVertexNormals(); return g; })();
     const bogieMat = rust;
-    const car = (lit) => { const sm = weather(new THREE.MeshStandardMaterial({map:side(lit), emissiveMap:emis(lit), emissive:0xffffff, emissiveIntensity:.5, ...detail(4, 1)}));
+    const car = (lit) => { const sm = weather(new THREE.MeshStandardMaterial({map:side(lit), emissiveMap:emis(lit), emissive:0xffffff, emissiveIntensity:.5, ...detail(5.4, 1.4)}));
       const m = new THREE.Mesh(bodyGeo, [endMat, endMat, topMat, topMat, sm, sm]);
       for (const bx of [-carLen*.34, carLen*.34]){ m.add(at(box(2.6, .55, carW - .5, bogieMat), bx, -carH/2 - .35, 0));
         for (const wx of [-.75, .75]) for (const wz of [-1, 1]){ const w = cyl(.42, .42, .14, bogieMat, 14); w.rotation.x = Math.PI/2; w.position.set(bx + wx, -carH/2 - .55, wz*(carW/2 - .35)); m.add(w); } }
