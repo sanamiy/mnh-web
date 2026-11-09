@@ -1,0 +1,85 @@
+{
+  "discord_invite": "https://discord.gg/J8HXevc6J3",
+  "events": [
+    {
+      "date": "2026-09-07",
+      "round": 1,
+      "theme": "お題なし",
+      "starts_at": "2026-09-07T20:00:00+09:00",
+      "ends_at": "2026-09-07T22:50:00+09:00",
+      "url": "https://note.com/sanamiev/n/n0b671ef047c5"
+    },
+    {
+      "date": "2026-09-21",
+      "round": 2,
+      "theme": "Jev",
+      "starts_at": "2026-09-21T20:00:00+09:00",
+      "ends_at": "2026-09-21T22:50:00+09:00",
+      "url": "https://note.com/sanamiev/n/ned520f9574c0"
+    },
+    {
+      "date": "2026-09-28",
+      "round": 3,
+      "theme": "お題なし",
+      "starts_at": "2026-09-28T20:00:00+09:00",
+      "ends_at": "2026-09-28T22:50:00+09:00",
+      "url": "https://note.com/sanamiev/n/n8d4c2d78a1da"
+    },
+    {
+      "date": "2026-10-05",
+      "round": 4,
+      "theme": "BERT",
+      "starts_at": "2026-10-05T20:00:00+09:00",
+      "ends_at": "2026-10-05T22:50:00+09:00",
+      "url": "https://note.com/sanamiev/n/n90d649736abf"
+    },
+    {
+      "date": "2026-10-12",
+      "round": 5,
+      "theme": "お題なし",
+      "starts_at": "2026-10-12T20:00:00+09:00",
+      "ends_at": "2026-10-12T22:50:00+09:00",
+      "url": "https://note.com/sanamiev/n/n204bb5548aca"
+    },
+    {
+      "date": "2026-10-19",
+      "round": 6,
+      "theme": "BERT",
+      "starts_at": "2026-10-19T20:00:00+09:00",
+      "ends_at": "2026-10-19T22:50:00+09:00",
+      "url": "https://note.com/sanamiev/n/ncad74baef984"
+    },
+    {
+      "date": "2026-10-26",
+      "round": 7,
+      "theme": "なんでもあり",
+      "starts_at": "2026-10-26T20:00:00+09:00",
+      "ends_at": "2026-10-26T22:50:00+09:00",
+      "url": "https://note.com/sanamiev/n/n94ce5eb48e7d"
+    },
+    {
+      "date": "2026-11-02",
+      "round": 8,
+      "theme": "形式検証",
+      "starts_at": "2026-11-02T20:00:00+09:00",
+      "ends_at": "2026-11-02T22:50:00+09:00",
+      "url": "https://note.com/sanamiev/n/na4cbcfc982c0"
+    },
+    {
+      "date": "2026-11-09",
+      "round": 9,
+      "theme": "なんでもあり",
+      "starts_at": "2026-11-09T20:00:00+09:00",
+      "ends_at": "2026-11-09T22:50:00+09:00",
+      "url": "https://note.com/sanamiev/n/n83c1188f5371"
+    },
+    {
+      "date": "2026-11-16",
+      "round": 10,
+      "theme": "Music Video",
+      "starts_at": "2026-11-16T20:00:00+09:00",
+      "ends_at": "2026-11-16T22:50:00+09:00",
+      "url": "https://note.com/sanamiev/n/nf3d011f3d246"
+    }
+  ]
+}

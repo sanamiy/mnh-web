@@ -10,7 +10,11 @@
 
 ## 構成
 
-- `public/index.html`: 資料の入口
+- `public/index.html`: トップページ（海に沈んだ街へスクロールで潜る3Dサイト。three.js＋GSAP＋Lenis）
+- `public/events.json`: 開催日データ。運用フォルダの `scripts/export_web_events.py` で書き出す（手編集しない）
+- `public/scene/`・`public/assets/`: 3Dシーンの追加オブジェクトと素材（出典は `public/assets/models/CREDITS.md`）
+- `public/fonts/`: Webフォント（すべてSIL Open Font License）
+- `DESIGN.md`: デザインシステム（色・文字・余白・動き・コンポーネント）
 - `public/bert/index.html`: BERTの解説
 - `public/formal-verification/index.html`: 形式検証の解説
 - `scripts/deploy.sh`: Cloudflare Pagesへの公開コマンド
