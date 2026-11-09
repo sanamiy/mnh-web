@@ -55,6 +55,9 @@ html,body{margin:0;background:var(--bg);overscroll-behavior-y:none;color:var(--t
   background:linear-gradient(color-mix(in srgb,var(--ctaFill2) 80%,transparent),color-mix(in srgb,var(--ctaFill2) 80%,transparent)) padding-box,var(--aurora) border-box;
   box-shadow:0 0 22px color-mix(in srgb,var(--periwinkle) 25%,transparent)}
 .btn.aurora:hover{background:linear-gradient(color-mix(in srgb,var(--periwinkle) 22%,var(--ctaFill2)),color-mix(in srgb,var(--periwinkle) 22%,var(--ctaFill2))) padding-box,var(--aurora) border-box;box-shadow:0 0 32px color-mix(in srgb,var(--periwinkle) 45%,transparent)}
+/* no visible scrollbars (the dive itself shows progress); on phones also hide the progress bar */
+html{scrollbar-width:none}html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
+@media (max-width:640px){.hud.sec{display:none}}
 #loading{position:fixed;inset:0;z-index:3;display:grid;place-items:center;background:var(--bg);font-family:"Geist Mono",monospace;font-size:11px;letter-spacing:.3em;color:var(--muted);transition:opacity .8s}
 #loading.done{opacity:0;pointer-events:none}
 /* accessible mirror: hidden visually when WebGL runs, shown as a plain page otherwise */
@@ -806,6 +809,9 @@ function resize(){
   for (const s of sections) s.scale.setScalar(Math.min(1, vw*.94/(s.userData.w || 10)));
   gauge.position.set(-vw/2 * 12.6/12 + .32, 0, -12.6);
 }
+let pageBg = ""; const themeMeta = document.querySelector('meta[name="theme-color"]');
+// the toolbar changes the visual viewport without always firing window resize on iOS: re-measure the canvas then too
+visualViewport?.addEventListener("resize", () => { if (Math.abs(canvas.clientHeight * (renderer.getPixelRatio()) - renderer.domElement.height) > 2) resize(); });
 addEventListener("resize", () => { const n = innerWidth/innerHeight < .9; if (n !== NARROW){ NARROW = n; buildUI(); buildTimeline(); ScrollTrigger.refresh(); } else resize(); });
 
 // ---------------- loop ----------------
@@ -850,6 +856,9 @@ function frame(){
   camera.lookAt(look.x*1.2 + Math.tan(yaw)*12, y + look.y*.6, -12);
   uiRig.position.set(0, -y, 0); // content at camera-local (0, secY - camY, -12): fixed framing, unaffected by sway
   atmosphere(y);
+  // iOS Safari can briefly expose the page behind the canvas at the bottom (toolbar animation, momentum scroll):
+  // keep the page background and the toolbar tint the same colour as the water at this depth, so nothing shows as a flat band
+  { const hex = "#" + scene.background.getHexString(); if (hex !== pageBg){ pageBg = hex; document.documentElement.style.backgroundColor = hex; document.body.style.backgroundColor = hex; themeMeta?.setAttribute("content", hex); } }
   { const u = water.material.uniforms; u.uTime.value = t; u.uFogDensity.value = fog.density; u.uFogColor.value.copy(fog.color); u.uCam.value.copy(camera.position); }
   const under = THREE.MathUtils.smoothstep(-y, 0, 3);
   snow.material.uniforms.uTime.value = t; snow.material.uniforms.uVis.value = under;
