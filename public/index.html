@@ -341,9 +341,9 @@ const water = new Reflector(new THREE.PlaneGeometry(700, 700, 220, 220), {
           vec3 I=normalize(vW-uCam);float ci=clamp(dot(I,N),0.,1.);float kk=1.-1.777*(1.-ci*ci);
           vec3 tir=uFogColor*.55+vec3(.02,.015,.04)*pow(.5+.5*N.x,4.);
           vec3 Tr=refract(I,-N,1.333);Tr=dot(Tr,Tr)<1e-4?vec3(0.,1.,0.):normalize(Tr);
-          float up=clamp(Tr.y,0.,1.);vec3 win=mix(vec3(.03,.025,.08),vec3(.12,.1,.26),up);
+          float up=clamp(Tr.y,0.,1.);vec3 win=mix(vec3(.05,.12,.16),vec3(.16,.30,.38),up);
           win+=vec3(1.,.9,.75)*(pow(clamp(dot(Tr,L),0.,1.),400.)*12.+pow(clamp(dot(Tr,L),0.,1.),30.)*.4);
-          win+=vec3(.25,.2,.45)*(1.-smoothstep(0.,.25,up))*.5;
+          win+=vec3(.12,.25,.30)*(1.-smoothstep(0.,.25,up))*.5;
           // soft edge of Snell's window instead of a hard switch (the hard switch flickered as ripples moved)
           col=mix(tir,win,smoothstep(0.,.12,kk));
         }
