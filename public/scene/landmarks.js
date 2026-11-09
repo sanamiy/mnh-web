@@ -504,12 +504,12 @@ vFp=position;float tw=pow(clamp((.1-position.x)/.5,0.,1.),2.);transformed.z+=sin
         .replace("#include <fog_vertex>", "#include <fog_vertex>\nvFw=(modelMatrix*instanceMatrix*vec4(transformed,1.)).xyz;");
       sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uTime;uniform vec3 uWater;varying vec3 vFp;varying vec3 vFw;")
         .replace("#include <map_fragment>", `#include <map_fragment>
-float back=smoothstep(.0,.06,vFp.y);
+float back=smoothstep(-.05,-.015,vFp.y); /* dark back reaches well down the flank; silver only on the lower side and belly */
 vec3 silver=vec3(.78,.82,.84), dorsal=vec3(.05,.13,.15);
-float spots=(1.-smoothstep(.009,.014,length(vec2(fract(vFp.x*22.)-.5,(vFp.y-.028)*22.)/22.)))*step(-.2,vFp.x)*step(vFp.x,.22);
+float spots=(1.-smoothstep(.009,.014,length(vec2(fract(vFp.x*22.)-.5,(vFp.y+.035)*22.)/22.)))*step(-.2,vFp.x)*step(vFp.x,.22);
 diffuseColor.rgb=mix(silver,dorsal,back)*(1.-.6*spots);`)
         .replace("#include <opaque_fragment>", `{vec3 Vv=normalize(vViewPosition);float fres=pow(1.-abs(dot(normalize(normal),Vv)),2.5);
- float belly=1.-smoothstep(.0,.06,vFp.y);
+ float belly=1.-smoothstep(-.05,-.015,vFp.y);
  outgoingLight+=uWater*(.5+1.2*fres)*belly*1.4;
  float cz=exp(vFw.y/12.);float cs=pow(abs(sin(vFw.x*1.7+uTime*1.3)*sin(vFw.z*1.9-uTime*1.1)),6.);
  outgoingLight+=vec3(.6,.8,.85)*cs*cz*(1.-belly)*.35;}
