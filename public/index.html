@@ -825,7 +825,7 @@ function resize(){
   for (const s of sections) s.scale.setScalar(Math.min(1, vw*.94/(s.userData.w || 10)));
   gauge.position.set(-vw/2 * 12.6/12 + .32, 0, -12.6);
 }
-let pageBg = "", yawNow = 0; const themeMeta = document.querySelector('meta[name="theme-color"]');
+let pageBg = ""; const themeMeta = document.querySelector('meta[name="theme-color"]');
 // the toolbar changes the visual viewport without always firing window resize on iOS: re-measure the canvas then too
 visualViewport?.addEventListener("resize", () => { if (Math.abs(canvas.clientHeight * (renderer.getPixelRatio()) - renderer.domElement.height) > 2) resize(); });
 addEventListener("resize", () => { const n = innerWidth/innerHeight < .9; if (n !== NARROW){ NARROW = n; buildUI(); buildTimeline(); ScrollTrigger.refresh(); } else resize(); });
@@ -867,9 +867,7 @@ function frame(){
   const t = reduce ? 0 : clock.getElapsedTime(), y = cam.y;
   look.lerp(lookT, .05);
   camera.position.set(look.x*.6 + (reduce?0:Math.sin(t*.3)*.12), y + look.y*.35 + (reduce?0:Math.sin(t*.5)*.08), 0);
-  // portrait: turn a little toward the data center's server floor (south-west corner) around the LABS stop; UI rides on the camera so it stays centred
-  const yawT = NARROW ? -.28*Math.exp(-Math.pow((y - Y.labs)/26, 2)) : 0; yawNow += (yawT - yawNow)*.025; const yaw = yawNow; /* wide and damped: no sudden swing while scrolling */
-  camera.lookAt(look.x*1.2 + Math.tan(yaw)*12, y + look.y*.6, -12);
+  camera.lookAt(look.x*1.2, y + look.y*.6, -12); /* straight down the dive, no turning */
   uiRig.position.set(0, -y, 0); // content at camera-local (0, secY - camY, -12): fixed framing, unaffected by sway
   atmosphere(y);
   // iOS Safari can briefly expose the page behind the canvas at the bottom (toolbar animation, momentum scroll):
