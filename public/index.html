@@ -638,7 +638,7 @@ const panelMat = (w, h, o = {}) => new THREE.ShaderMaterial({transparent:true, d
       float edge=1.-smoothstep(lw-fw,lw+fw,abs(d));float line=edge*max(uLine,uHover);
       if(uStyle>.5){float L=min(.55,min(uSize.x,uSize.y)*.3);vec2 ap=abs(p);float corner=step(uSize.x*.5-L-uCh,ap.x)*step(uSize.y*.5-L-uCh,ap.y);
         float tick=uTicks*step(fract(p.x/.5+.5),.03)*step(uSize.y*.5-.14,p.y)*step(p.y,uSize.y*.5)*step(abs(p.x),uSize.x*.5-.8);
-        line=max(edge*max(.16*uLine,uHover),tick*.6);} // no corner brackets: rows and cards stay borderless (outline only on hover)float inside=1.-smoothstep(-fw,fw,d);float glow=exp(-max(d,0.)*7.)*(1.-inside)*uGlow*(1.-uStyle*.75);
+        line=max(edge*max(.16*uLine,uHover),tick*.6);} /* no corner brackets: borderless rows/cards, outline only on hover */float inside=1.-smoothstep(-fw,fw,d);float glow=exp(-max(d,0.)*7.)*(1.-inside)*uGlow*(1.-uStyle*.75);
       vec3 fill=mix(uFill,bc,.12+uHover*.25);
       vec3 col=fill*inside*(1.-line)+bc*line+bc*glow;float a=max(max(inside*(uFillA+uHover*.15),line),glow);
       gl_FragColor=vec4(col,a*uOpacity);}`});
