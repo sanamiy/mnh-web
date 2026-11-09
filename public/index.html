@@ -135,7 +135,7 @@ const DS = {
   moonGold:"#F2C97A", moonLight:"#FFF4C8", moonPink:"#F7E3F0", lantern:"#FFB070",          // warm light (moon, lit windows)
   glass:"#0A1030", glassDeep:"#070B20", cell:"#0B1028", row:"#0A1530", cellPast:"#151A33",  // surfaces
   line:"#1C2346", linePast:"#5D6390", ctaFill:"#0E2A2A", ctaFill2:"#10183A",
-  env:{ sky:"#07061C", surface:"#0C0A2A", twilight:"#2A1747", deep:"#18245A", abyss:"#082D48", trench:"#052A25" }, // depth haze
+  env:{ sky:"#050A18", surface:"#08111F", twilight:"#2A1747", deep:"#18245A", abyss:"#082D48", trench:"#052A25" }, // depth haze
   // fonts: Smooch + Michroma only inside the logo; Geist for UI, Geist Mono for data, Zen Kaku Gothic New for Japanese
   font:{ script:"./fonts/Smooch-Regular.ttf", logo:"./fonts/Michroma-Regular.ttf", sans:"./fonts/geist-500.woff", light:"./fonts/geist-300.woff",
     mono:"./fonts/geist-mono-400.woff", jpFile:"./fonts/zen-kaku-gothic-new-500-subset.woff", jp:"Zen Kaku Gothic New" },
@@ -217,14 +217,28 @@ const STOPS = [
   {y: -90, c: new THREE.Color(DS.env.abyss), d: .021},
   {y: -170,c: new THREE.Color(DS.env.trench), d: .023},
 ];
+// Underwater light colour. Water absorbs red first (pure water ~0.35 /m at 650 nm), then green and blue; coastal water
+// (plankton, dissolved organics) also absorbs blue, so what is left at depth is blue-green. Per-channel diffuse attenuation
+// for clear coastal water (Jerlov coastal 1-ish, Kuroshio-influenced like Kagoshima Bay): R 0.38, G 0.07, B 0.065 /m.
+// Moonlight just below the surface is taken as the water-leaving blue; the hue at each depth follows exp(-Kd*z), and only the
+// overall brightness is held near a readable level (at 175 m real moonlight would be gone).
+const KD = [.38, .07, .065], SURF = [.30, .62, .78];
+function waterColor(d, out){
+  const r = SURF[0]*Math.exp(-KD[0]*d), g = SURF[1]*Math.exp(-KD[1]*d), b = SURF[2]*Math.exp(-KD[2]*d);
+  const lum = .2126*r + .7152*g + .0722*b, target = THREE.MathUtils.lerp(.014, .011, Math.min(1, d/175));
+  return out.setRGB(r*target/lum, g*target/lum, b*target/lum);   // linear working space
+}
 function atmosphere(y) {
   let a = STOPS[0], b = STOPS[STOPS.length-1];
   for (let i = 0; i < STOPS.length-1; i++) if (y <= STOPS[i].y && y >= STOPS[i+1].y) { a = STOPS[i]; b = STOPS[i+1]; break; }
   if (y > STOPS[0].y) b = a;
   const t = a === b ? 0 : (a.y - y) / (a.y - b.y);
   fog.color.copy(a.c).lerp(b.c, t); fog.density = a.d + (b.d - a.d) * t;
-  scene.background.copy(fog.color);
   const under = y < 0;
+  if (under) waterColor(-y, fog.color);   // underwater: colour from spectral attenuation, not from a hand-picked palette
+  scene.background.copy(fog.color);
+  if (under){ hemi.color.copy(fog.color).multiplyScalar(1/Math.max(fog.color.r, fog.color.g, fog.color.b)); moonLight.color.copy(hemi.color).lerp(new THREE.Color(0xcfd2ff), Math.exp(y/8)); }
+  else { hemi.color.set(0x8aa2d6); moonLight.color.set(0xdfe4f2); } /* moonlit night: deep blue sky, moonlight close to neutral (it is reflected sunlight) */
   hemi.intensity = under ? 1.1 + .9 * Math.exp(y/40) : 1.5; fill.intensity = under ? .5 + .6 * Math.exp(y/30) : .9;
   moonLight.intensity = under ? .25 + .9 * Math.exp(y/25) : 1.4;
 }
