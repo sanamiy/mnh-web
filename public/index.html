@@ -31,7 +31,11 @@
 :root{color-scheme:dark;--bg:#090822;--text:#E8ECF7;--muted:#9AA0C6;--orchid:#F2A8EC;--periwinkle:#A9B4FF;--cyan:#9FE6F5;--mint:#A8F0D0;--ctaFill:#0E2A2A;--ctaFill2:#10183A;--font-jp:"Zen Kaku Gothic New";--fast:.25s;--aurora:linear-gradient(90deg,#F2A8EC,#A9B4FF,#9FE6F5,#A8F0D0)}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);overscroll-behavior-y:none;color:var(--text);font-family:Geist,var(--font-jp),"Hiragino Sans",-apple-system,sans-serif}
-#gl{position:sticky;top:0;width:100%;height:100vh;height:100lvh;margin-bottom:-100vh;margin-bottom:-100lvh;display:block;z-index:0} /* sticky (in-flow), not fixed: iOS Safari draws page content under its translucent bars but leaves fixed layers short of them */
+#gl{--bleed:160px;position:sticky;top:calc(-1*var(--bleed));width:100%;height:calc(100vh + 2*var(--bleed));height:calc(100lvh + 2*var(--bleed));
+  margin-top:calc(-1*var(--bleed));margin-bottom:calc(-100vh - var(--bleed));margin-bottom:calc(-100lvh - var(--bleed));display:block;z-index:0}
+/* the scene overhangs the viewport by --bleed above and below: phone browsers draw page content under their status/address/tab
+   bars, which sit outside the layout viewport, so a canvas that only fills the viewport leaves those strips empty */
+body{padding-bottom:160px} /* room for the bottom overhang, so the sticky canvas is never pushed up at the end of the scroll */
 #track{position:relative;z-index:1;pointer-events:none}
 .hud{position:fixed;z-index:2;font-family:"Geist Mono",monospace;font-size:10px;letter-spacing:.24em;color:color-mix(in srgb,var(--text) 70%,transparent);pointer-events:none}
 .hud.top{top:18px;left:20px;right:20px;display:flex;justify-content:space-between}
@@ -634,7 +638,7 @@ const panelMat = (w, h, o = {}) => new THREE.ShaderMaterial({transparent:true, d
       float edge=1.-smoothstep(lw-fw,lw+fw,abs(d));float line=edge*max(uLine,uHover);
       if(uStyle>.5){float L=min(.55,min(uSize.x,uSize.y)*.3);vec2 ap=abs(p);float corner=step(uSize.x*.5-L-uCh,ap.x)*step(uSize.y*.5-L-uCh,ap.y);
         float tick=uTicks*step(fract(p.x/.5+.5),.03)*step(uSize.y*.5-.14,p.y)*step(p.y,uSize.y*.5)*step(abs(p.x),uSize.x*.5-.8);
-        line=max(edge*max(max(corner,.16*uLine),uHover),tick*.6);}float inside=1.-smoothstep(-fw,fw,d);float glow=exp(-max(d,0.)*7.)*(1.-inside)*uGlow*(1.-uStyle*.75);
+        line=max(edge*max(.16*uLine,uHover),tick*.6);} // no corner brackets: rows and cards stay borderless (outline only on hover)float inside=1.-smoothstep(-fw,fw,d);float glow=exp(-max(d,0.)*7.)*(1.-inside)*uGlow*(1.-uStyle*.75);
       vec3 fill=mix(uFill,bc,.12+uHover*.25);
       vec3 col=fill*inside*(1.-line)+bc*line+bc*glow;float a=max(max(inside*(uFillA+uHover*.15),line),glow);
       gl_FragColor=vec4(col,a*uOpacity);}`});
@@ -656,12 +660,12 @@ function htmlButton(g, o){
 }
 const _bp = new THREE.Vector3();
 function placeButtons(){
-  const CH = canvas.clientHeight || innerHeight, ppu = CH / (2*12*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
+  const CH = canvas.clientHeight || innerHeight, CT = canvas.getBoundingClientRect().top, ppu = CH / (2*12*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
   for (const b of buttons){
     const o = b.g.visible ? (b.g.userData.o ?? 0) : 0;
     if (o < .02){ b.el.style.visibility = "hidden"; continue; }
     b.anchor.getWorldPosition(_bp).project(camera);
-    const k = ppu * b.g.scale.x, x = (_bp.x*.5+.5)*innerWidth, y = (-_bp.y*.5+.5)*CH;
+    const k = ppu * b.g.scale.x, x = (_bp.x*.5+.5)*innerWidth, y = (-_bp.y*.5+.5)*CH + CT; /* canvas overhangs the viewport: convert to viewport pixels */
     Object.assign(b.el.style, {visibility:"visible", opacity:o, pointerEvents:o > .6 ? "auto" : "none", width:b.w*k+"px", height:b.h*k+"px",
       fontSize:Math.max(12, b.h*k*.34)+"px", transform:`translate(${x - b.w*k/2}px, ${y - b.h*k/2}px)`});
   }
@@ -816,7 +820,7 @@ function buildTimeline(){
 const ray = new THREE.Raycaster(); ray.layers.enable(1); const ptr = new THREE.Vector2(), look = new THREE.Vector2(), lookT = new THREE.Vector2();
 let hovered = null;
 function pick(e){
-  ptr.set(e.clientX/(canvas.clientWidth || innerWidth)*2-1, -(e.clientY/(canvas.clientHeight || innerHeight)*2-1)); ray.setFromCamera(ptr, camera);
+  ptr.set(e.clientX/(canvas.clientWidth || innerWidth)*2-1, -((e.clientY - canvas.getBoundingClientRect().top)/(canvas.clientHeight || innerHeight)*2-1)); ray.setFromCamera(ptr, camera);
   const hit = ray.intersectObjects(clickables.filter(c => c.parent?.visible), false)[0];
   return hit?.object ?? null;
 }
@@ -833,7 +837,9 @@ addEventListener("click", e => { const h = pick(e); if (!h) return; const href =
 // ---------------- resize ----------------
 function resize(){
   const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight; renderer.setSize(w, h, false); camera.aspect = w/h;
-  camera.fov = NARROW ? 58 : 50; /* portrait: a little wider so the side streets stay in frame */ camera.updateProjectionMatrix();
+  { const base = NARROW ? 58 : 50, bleed = parseFloat(getComputedStyle(canvas).getPropertyValue("--bleed")) || 0, vis = Math.max(1, h - 2*bleed);
+    /* the canvas is taller than the viewport by the overhang: widen the vertical FOV so the visible part keeps the intended framing */
+    camera.fov = THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(THREE.MathUtils.degToRad(base/2))*h/vis)); } camera.updateProjectionMatrix();
   snow.material.uniforms.uPx.value = h/800 * Math.min(devicePixelRatio,1.75);
   const vw = 2*12*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*camera.aspect;
   for (const s of sections) s.scale.setScalar(Math.min(1, vw*.94/(s.userData.w || 10)));
