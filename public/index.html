@@ -710,8 +710,12 @@ function buildUI(){
     const mn = NARROW ? "Monday\nNight" : "Monday Night";
     g.add(text(mn, {font:SMOOCH, size:T("logo"), y:NARROW?2.75:1.85, colorRanges:gradRanges(mn, BRAND, true), align:"center", lh:.85}));
     g.add(text("HACKATHON", {font:MICH, size:T("h1"), ls:.42, y:NARROW?.15:.05, color:DS.text}));
-    g.add(text("月曜の夜、新しい技術に出会う。", {size:T("title"), y:NARROW?-.75:-.85, color:DS.text2, ls:.08}));
-    if (!OG) g.add(text("SCROLL TO DIVE", {data:true, size:T("caption"), y:NARROW?-1.8:-1.95, color:DS.mist, ls:.4}));
+    // event name (logo) and catchphrase are separate: a short hairline and a clear gap split them; the copy is smaller and quieter
+    const TAGLINE = "月曜の夜、新しい技術に出会う。";
+    { const m = new THREE.Mesh(new THREE.PlaneGeometry(.9, .015), new THREE.MeshBasicMaterial({color:DS.text, transparent:true, opacity:.35, depthTest:false, depthWrite:false, toneMapped:false}));
+      m.position.set(0, NARROW ? -.62 : -.68, 0); m.renderOrder = 4; m.userData.base = .35; g.add(m); }
+    g.add(text(TAGLINE, {size:NARROW ? .3 : .34, y:NARROW ? -1.2 : -1.3, color:DS.text2, ls:.14}));
+    if (!OG) g.add(text("SCROLL TO DIVE", {data:true, size:T("caption"), y:NARROW?-2.3:-2.45, color:DS.mist, ls:.4}));
   });
 
   // 1. next session — centred poster: label / huge light date / mono time / hairline / theme / button
