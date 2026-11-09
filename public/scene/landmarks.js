@@ -284,14 +284,31 @@ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.12,.125,.11)*(.7+.5*wB),wU*wUp*smoot
       x.fillStyle = "#b8743a"; x.fillRect(0, h*.68, w, h*.07); x.fillStyle = "#2a2e34"; x.fillRect(100, 140, 56, 110); });
     const detail = (rx, ry) => { const n = cloneTex(tex("rusty_painted_metal_nor_gl")), a = cloneTex(tex("rusty_painted_metal_arm")); for (const t of [n, a]) t.repeat.set(rx, ry); return {normalMap:n, roughnessMap:a, metalnessMap:a, roughness:1, metalness:.8}; };
     const topMat = pbr("rusty_metal_02", 4, 1, {metal:true}), endMat = weather(new THREE.MeshStandardMaterial({map:endTex, ...detail(1, 1)}));
+    // car body: a box re-shaped into a rounded shell — big radius along the roof, small at the floor and the car ends,
+    // slight tumblehome below the windows. Face groups/UVs stay the box's, so the livery still maps onto the sides.
+    const bodyGeo = (() => {
+      const g = new THREE.BoxGeometry(carLen, carH, carW, 28, 14, 12), pa = g.attributes.position, hx = carLen/2, hy = carH/2, hz = carW/2, p = new V3(), c = new V3();
+      for (let i = 0; i < pa.count; i++){ p.fromBufferAttribute(pa, i);
+        const r = p.y > 0 ? .85 : .22, rx = .45;                                  // roof / floor / ends
+        c.set(THREE.MathUtils.clamp(p.x, -hx + rx, hx - rx), THREE.MathUtils.clamp(p.y, -hy + r, hy - r), THREE.MathUtils.clamp(p.z, -hz + r, hz - r));
+        const d = p.clone().sub(c), k = new V3(d.x/rx, d.y/r, d.z/r); if (k.lengthSq() > 0) k.normalize();
+        p.copy(c).add(new V3(k.x*rx, k.y*r, k.z*r));
+        if (p.y < -.3) p.z *= 1 - .07*Math.min(1, (-.3 - p.y)/(hy - .3));       // tumblehome
+        pa.setXYZ(i, p.x, p.y, p.z); }
+      g.computeVertexNormals(); return g; })();
+    const bogieMat = rust;
     const car = (lit) => { const sm = weather(new THREE.MeshStandardMaterial({map:side(lit), emissiveMap:emis(lit), emissive:0xffffff, emissiveIntensity:.5, ...detail(4, 1)}));
-      const m = new THREE.Mesh(new THREE.BoxGeometry(carLen, carH, carW), [endMat, endMat, topMat, topMat, sm, sm]);
-      m.add(at(box(1.6, .08, 1.4, rust), 2, carH/2 + .6, 0), at(box(.08, .6, .08, rust), 2, carH/2 + .3, 0)); return m; };
-    const onDeck = (m, x) => { m.position.set(x, RY + .7 + carH/2 + .25, RZ); scene.add(m); };
+      const m = new THREE.Mesh(bodyGeo, [endMat, endMat, topMat, topMat, sm, sm]);
+      for (const bx of [-carLen*.34, carLen*.34]){ m.add(at(box(2.6, .55, carW - .5, bogieMat), bx, -carH/2 - .35, 0));
+        for (const wx of [-.75, .75]) for (const wz of [-1, 1]){ const w = cyl(.42, .42, .14, bogieMat, 14); w.rotation.x = Math.PI/2; w.position.set(bx + wx, -carH/2 - .55, wz*(carW/2 - .35)); m.add(w); } }
+      for (const sx of [-1, 1]) m.add(at(box(.5, .25, .3, bogieMat), sx*(carLen/2 + .2), -carH/2 + .15, 0));   // couplers
+      m.add(at(box(1.6, .08, 1.4, rust), 2, carH/2 + .6, 0), at(box(.08, .55, .08, rust), 2, carH/2 + .32, 0)); return m; };
+    const onDeck = (m, x) => { m.position.set(x, RY + .7 + carH/2 + .95, RZ); scene.add(m); }; /* rides on its bogies, on the rails */
     onDeck(car([2, 7]), -44); { const c2 = car([6]); onDeck(c2, -14.5); c2.rotation.z = -.05; c2.position.y -= .25; } /* lead car overhangs the broken edge, dipping */
     // the car that fell with the span: came off it and lies askew in the avenue just south of it, nose dug into the silt
-    const c3 = car([3]); c3.rotation.order = "YZX"; c3.rotation.set(.08, .42, -.16);
-    c3.position.set(3, ground(3, RZ + 3.6) + carH/2 + .9, RZ + 3.6); scene.add(c3);
+    // (placed clear of the fallen slab and the station block: along the north edge of the cross street, east of the avenue)
+    const c3 = car([3]); c3.rotation.order = "YZX"; c3.rotation.set(.12, .1, -.05);
+    c3.position.set(13.5, ground(13.5, RZ + 6.6) + carH/2 + 1.1, RZ + 6.6); scene.add(c3);
   }
 
 
