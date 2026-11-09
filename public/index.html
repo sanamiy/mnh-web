@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="マンデーナイトハッカソンは、毎週月曜の夜に新しい技術と出会うオンラインの実験室。海に沈んだ未来の街へ潜って、開催日と資料を見つけよう。">
 <meta name="theme-color" content="#090822">
 <title>Monday Night Hackathon</title>
@@ -16,13 +16,13 @@
 :root{color-scheme:dark;--bg:#090822;--text:#E8ECF7;--muted:#9AA0C6;--orchid:#F2A8EC;--periwinkle:#A9B4FF;--cyan:#9FE6F5;--mint:#A8F0D0;--ctaFill:#0E2A2A;--ctaFill2:#10183A;--font-jp:"Zen Kaku Gothic New";--fast:.25s;--aurora:linear-gradient(90deg,#F2A8EC,#A9B4FF,#9FE6F5,#A8F0D0)}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);overscroll-behavior-y:none;color:var(--text);font-family:Geist,var(--font-jp),"Hiragino Sans",-apple-system,sans-serif}
-#gl{position:fixed;left:0;top:0;width:100%;height:100vh;height:100lvh;display:block;z-index:0} /* lvh: reach the bottom even when the mobile toolbar collapses */
+#gl{position:fixed;left:0;top:0;width:100%;height:100vh;height:100lvh;display:block;z-index:0} /* lvh + viewport-fit=cover: draw under Safari's toolbar too, so collapsing it never reveals a blank band */
 #track{position:relative;z-index:1;pointer-events:none}
 .hud{position:fixed;z-index:2;font-family:"Geist Mono",monospace;font-size:10px;letter-spacing:.24em;color:color-mix(in srgb,var(--text) 70%,transparent);pointer-events:none}
 .hud.top{top:18px;left:20px;right:20px;display:flex;justify-content:space-between}
-.hud.depth{left:20px;bottom:20px}
+.hud.depth{left:calc(20px + env(safe-area-inset-left));bottom:calc(20px + env(safe-area-inset-bottom))}
 .hud.depth b{display:block;font-weight:400;font-size:22px;letter-spacing:.06em;color:var(--text);margin-top:4px}
-.hud.sec{right:20px;bottom:20px;text-align:right}
+.hud.sec{right:calc(20px + env(safe-area-inset-right));bottom:calc(20px + env(safe-area-inset-bottom));text-align:right}
 .hud.sec .bar{width:2px;height:90px;background:rgba(255,255,255,.15);margin:0 0 10px auto;position:relative}
 .hud.sec .bar i{position:absolute;left:0;top:0;width:2px;background:linear-gradient(var(--orchid),var(--periwinkle),var(--cyan),var(--mint));height:0}
 @media (max-width:640px){.hud.top span:last-child{display:none}}
