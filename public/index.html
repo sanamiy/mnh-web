@@ -171,6 +171,7 @@ const now = new Date(), today = ymd(now);
 let data = {events:[]};
 try { data = await (await fetch("./events.json",{cache:"no-cache"})).json(); } catch(e) {}
 const events = data.events || [];
+const themeLabel = t => (!t || t === "未定") ? "近日発表" : t; // TBD themes show as "coming soon"
 let LABS = []; try { LABS = (await (await fetch("./labs.json", {cache:"no-cache"})).json()).labs || []; } catch(e) {}
 const endOf = e => new Date(e.ends_at || e.starts_at);
 const hm = s => new Date(s).toLocaleTimeString("ja-JP",{timeZone:TZ,hour:"2-digit",minute:"2-digit"});
@@ -186,7 +187,7 @@ const months = [-1,0,1].map(i => ({ y: TY + Math.floor((TM-1+i)/12), m: ((TM-1+i
 {
   const esc = t => String(t ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
   const jp = e => `${Number(e.date.slice(5,7))}月${Number(e.date.slice(8))}日（${DOWJ[dow(e)]}）${hm(e.starts_at)}〜${e.ends_at?hm(e.ends_at):""}`;
-  const li = e => `<li>${jp(e)}　${e.round?`#${e.round}　`:""}お題：${e.url?`<a href="${esc(e.url)}">${esc(e.theme)}</a>`:esc(e.theme)}</li>`;
+  const li = e => `<li>${jp(e)}　${e.round?`#${e.round}　`:""}お題：${e.url?`<a href="${esc(e.url)}">${esc(themeLabel(e.theme))}</a>`:esc(themeLabel(e.theme))}</li>`;
   document.getElementById("m-next").innerHTML = next ? li(next).replace(/<\/?li>/g,"") : "日程は決まり次第お知らせします。";
   document.getElementById("m-cal").innerHTML = events.filter(e => months.some(({y,m}) => e.date.startsWith(`${y}-${String(m).padStart(2,"0")}`))).map(li).join("") || "<li>開催日は決まり次第お知らせします。</li>";
   document.getElementById("m-past").innerHTML = past.map(li).join("");
@@ -728,7 +729,7 @@ function buildUI(){
     g.add(text(md(next), {size:NARROW ? 2.3 : 3.1, light:true, ls:-.03, y:1.25, color:DS.text}));
     g.add(text(`${DOW[dow(next)]}   ${hm(next.starts_at)} – ${next.ends_at ? hm(next.ends_at) : ""}  JST`, {data:true, size:T("body"), ls:.18, y:-.3, color:DS.text2}));
     g.add(hair(-.8, NARROW ? 4.5 : 5.5));
-    g.add(text(`お題：${next.theme}`, {size:NARROW ? .6 : .72, y:-1.4, maxWidth:w - 1, align:"center", color:DS.white}));
+    g.add(text(`お題：${themeLabel(next.theme)}`, {size:NARROW ? .6 : .72, y:-1.4, maxWidth:w - 1, align:"center", color:DS.white}));
     if (next.url) htmlButton(g, {label:"開催案内を見る", href:next.url, y:-2.35, w:NARROW ? 4.2 : 4.4, h:.7});
     g.add(text("Discordにて", {size:T("label"), y:-3.05, color:DS.mist}));
   });
@@ -750,7 +751,7 @@ function buildUI(){
         g.add(text(key.slice(5).replace("-","."), {size:.28, ax:"left", x:L+.3, y:ry, color:c, ls:.06, data:true}));
         if (e){
           g.add(text(e.round ? `#${e.round}` : "", {size:.28, ax:"left", x:L+1.55, y:ry, color:isPast ? DS.past : DS.mint, data:true}));
-          g.add(text(e.theme, {size:.3, ax:"left", x:L+2.45, y:ry, maxWidth:aw-3.6, color:isPast ? DS.past : DS.white}));
+          g.add(text(themeLabel(e.theme), {size:.3, ax:"left", x:L+2.45, y:ry, maxWidth:aw-3.6, color:isPast ? DS.past : DS.white}));
           if (e.url) g.add(text("→", {size:.28, ax:"right", x:aw/2-.3, y:ry, color:isPast ? DS.past : DS.mint}));
         } else g.add(text(isPast ? "開催なし" : "未定", {size:.22, ax:"left", x:L+1.55, y:ry, color:DS.past}));
         y -= STEP;
@@ -774,7 +775,7 @@ function buildUI(){
         g.add(text(key.slice(5).replace("-","."), {size:T("body"), ax:"left", x:L+.35, y:ry, color:c, ls:.06, data:true}));
         if (e){
           g.add(text(e.round ? `#${e.round}` : "", {size:T("body"), ax:"left", x:L+1.75, y:ry, color:isPast ? DS.past : DS.mint, data:true}));
-          g.add(text(e.theme, {size:T("body"), ax:"left", x:L+2.75, y:ry, maxWidth:aw-(NARROW ? 4.3 : 3.4), color:isPast ? DS.past : DS.white}));
+          g.add(text(themeLabel(e.theme), {size:T("body"), ax:"left", x:L+2.75, y:ry, maxWidth:aw-(NARROW ? 4.3 : 3.4), color:isPast ? DS.past : DS.white}));
           if (isNext && NARROW) g.add(text("NEXT", {size:T("caption"), ls:.3, ax:"right", x:ox+aw/2-.85, y:ry, color:DS.mint}));
           if (e.url) g.add(text("→", {size:T("body"), ax:"right", x:ox+aw/2-.35, y:ry, color:isPast ? DS.past : DS.mint}));
         } else {
