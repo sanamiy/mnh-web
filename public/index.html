@@ -76,7 +76,7 @@ body{padding-bottom:160px} /* room for the bottom overhang, so the sticky canvas
 .btn.aurora:hover{background:linear-gradient(color-mix(in srgb,var(--periwinkle) 22%,var(--ctaFill2)),color-mix(in srgb,var(--periwinkle) 22%,var(--ctaFill2))) padding-box,var(--aurora) border-box;box-shadow:0 0 32px color-mix(in srgb,var(--periwinkle) 45%,transparent)}
 /* no visible scrollbars (the dive itself shows progress); on phones also hide the progress bar */
 html{scrollbar-width:none}html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
-@media (max-width:640px){.hud.sec{display:none}}
+.hud.sec{display:none} /* no progress bar on any device */
 .og .hud,.og #ui{display:none!important}
 #loading{position:fixed;inset:0;z-index:3;display:grid;place-items:center;background:var(--bg);font-family:"Geist Mono",monospace;font-size:11px;letter-spacing:.3em;color:var(--muted);transition:opacity .8s}
 #loading.done{opacity:0;pointer-events:none}
