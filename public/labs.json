@@ -1,0 +1,14 @@
+{
+  "labs": [
+    {
+      "title": "BERTのしくみと使い方",
+      "description": "Attention・Transformer・日本語モデルを図で解説",
+      "href": "./bert/"
+    },
+    {
+      "title": "形式検証のしくみと限界",
+      "description": "検証方式、反例の読み方、限界までを図で解説",
+      "href": "./formal-verification/"
+    }
+  ]
+}

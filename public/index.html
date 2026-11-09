@@ -3,7 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="マンデーナイトハッカソンは、毎週月曜の夜に新しい技術と出会うオンラインの実験室。海に沈んだ未来の街へ潜って、開催日と資料を見つけよう。">
+<meta name="description" content="毎週月曜20時からDiscordで開催するオンラインハッカソン。生成AIで2時間ものづくりして、最後に3分で見せ合います。開催日カレンダーと技術の解説はこちら。">
+<link rel="canonical" href="https://monday-night-hackathon.pages.dev/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Monday Night Hackathon">
+<meta property="og:title" content="Monday Night Hackathon｜月曜の夜、新しい技術に出会う">
+<meta property="og:description" content="毎週月曜20時からDiscordで開催するオンラインハッカソン。生成AIで2時間ものづくりして、最後に3分で見せ合います。開催日カレンダーと技術の解説はこちら。">
+<meta property="og:url" content="https://monday-night-hackathon.pages.dev/">
+<meta property="og:image" content="https://monday-night-hackathon.pages.dev/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="月夜の海に沈んだ街と、Monday Night Hackathonのロゴ">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Monday Night Hackathon｜月曜の夜、新しい技術に出会う">
+<meta name="twitter:description" content="毎週月曜20時からDiscordで開催するオンラインハッカソン。生成AIで2時間ものづくりして、最後に3分で見せ合います。開催日カレンダーと技術の解説はこちら。">
+<meta name="twitter:image" content="https://monday-night-hackathon.pages.dev/og.jpg">
 <meta name="theme-color" content="#090822">
 <title>Monday Night Hackathon</title>
 <style>
@@ -58,6 +73,7 @@ html,body{margin:0;background:var(--bg);overscroll-behavior-y:none;color:var(--t
 /* no visible scrollbars (the dive itself shows progress); on phones also hide the progress bar */
 html{scrollbar-width:none}html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 @media (max-width:640px){.hud.sec{display:none}}
+.og .hud,.og #ui{display:none!important}
 #loading{position:fixed;inset:0;z-index:3;display:grid;place-items:center;background:var(--bg);font-family:"Geist Mono",monospace;font-size:11px;letter-spacing:.3em;color:var(--muted);transition:opacity .8s}
 #loading.done{opacity:0;pointer-events:none}
 /* accessible mirror: hidden visually when WebGL runs, shown as a plain page otherwise */
@@ -93,10 +109,7 @@ body.no-gl .mirror a{color:var(--cyan)}
   <section><h2>次回の開催</h2><p id="m-next">読み込み中…</p></section>
   <section><h2>開催日カレンダー</h2><ul id="m-cal"></ul></section>
   <section><h2>これまでの開催</h2><ul id="m-past"></ul></section>
-  <section><h2>公開資料</h2><ul>
-    <li><a href="./bert/">BERTのしくみと使い方</a></li>
-    <li><a href="./formal-verification/">形式検証のしくみと限界</a></li>
-  </ul></section>
+  <section><h2>公開資料</h2><ul id="m-labs"></ul></section>
   <section><h2>参加する</h2><p><a id="m-discord" href="#">Discordに参加する</a></p></section>
 </main>
 
@@ -140,7 +153,9 @@ const DS = {
 const T = k => (NARROW && DS.typeNarrow[k]) || DS.type[k];
 const TZ = "Asia/Tokyo", MICH = DS.font.logo, SMOOCH = DS.font.script;
 // instrument style: chamfered hero frame with corner brackets, depth ruler, mono data
-const IM = true; // the instrument style is the site style (the old ?ui toggle and the gradient variant were removed)
+const IM = true;
+const OG = new URLSearchParams(location.search).has("og"); // clean frame for the link-preview image
+if (OG) document.documentElement.classList.add("og"); // the instrument style is the site style (the old ?ui toggle and the gradient variant were removed)
 if (IM) document.documentElement.classList.add("im");
 const BRAND = [DS.orchid, DS.periwinkle, DS.cyan, DS.mint];
 const DOW = ["SUN","MON","TUE","WED","THU","FRI","SAT"], DOWJ = "日月火水木金土";
@@ -152,6 +167,7 @@ const now = new Date(), today = ymd(now);
 let data = {events:[]};
 try { data = await (await fetch("./events.json",{cache:"no-cache"})).json(); } catch(e) {}
 const events = data.events || [];
+let LABS = []; try { LABS = (await (await fetch("./labs.json", {cache:"no-cache"})).json()).labs || []; } catch(e) {}
 const endOf = e => new Date(e.ends_at || e.starts_at);
 const hm = s => new Date(s).toLocaleTimeString("ja-JP",{timeZone:TZ,hour:"2-digit",minute:"2-digit"});
 const dow = e => { const [y,m,d] = e.date.split("-").map(Number); return new Date(Date.UTC(y,m-1,d)).getUTCDay(); };
@@ -171,6 +187,7 @@ const months = [-1,0,1].map(i => ({ y: TY + Math.floor((TM-1+i)/12), m: ((TM-1+i
   document.getElementById("m-cal").innerHTML = events.filter(e => months.some(({y,m}) => e.date.startsWith(`${y}-${String(m).padStart(2,"0")}`))).map(li).join("") || "<li>開催日は決まり次第お知らせします。</li>";
   document.getElementById("m-past").innerHTML = past.map(li).join("");
   if (data.discord_invite) document.getElementById("m-discord").href = data.discord_invite;
+  document.getElementById("m-labs").innerHTML = LABS.map(l => `<li><a href="${esc(l.href)}">${esc(l.title)}</a></li>`).join("");
 }
 
 // ---------------- renderer ----------------
@@ -639,7 +656,7 @@ function section(name, y, build){ const g = new THREE.Group(); g.position.set(0,
 camera.layers.enable(1);
 // depth gauge in 3D, camera-locked, renderOrder below panels/text so the centre copy always sits on top of it
 const GK = .14; // units per metre
-const gauge = new THREE.Group(); camera.add(gauge);
+const gauge = new THREE.Group(); camera.add(gauge); gauge.visible = !OG;
 {
   const list = []; for (let m = 12; m >= SEABED - 6; m -= .5){ const big = m % 10 === 0, mid = m % 5 === 0, one = m % 1 === 0;
     list.push([m, big ? .34 : mid ? .2 : one ? .1 : .05, big ? .55 : mid ? .4 : one ? .3 : .18]); }
@@ -676,7 +693,7 @@ function buildUI(){
     g.add(text(mn, {font:SMOOCH, size:T("logo"), y:NARROW?2.75:1.85, colorRanges:gradRanges(mn, BRAND, true), align:"center", lh:.85}));
     g.add(text("HACKATHON", {font:MICH, size:T("h1"), ls:.42, y:NARROW?.15:.05, color:DS.text}));
     g.add(text("月曜の夜、新しい技術に出会う。", {size:T("title"), y:NARROW?-.75:-.85, color:DS.text2, ls:.08}));
-    g.add(text("SCROLL TO DIVE", {data:true, size:T("caption"), y:NARROW?-1.8:-1.95, color:DS.mist, ls:.4}));
+    if (!OG) g.add(text("SCROLL TO DIVE", {data:true, size:T("caption"), y:NARROW?-1.8:-1.95, color:DS.mist, ls:.4}));
   });
 
   // 1. next session — centred poster: label / huge light date / mono time / hairline / theme / button
@@ -689,7 +706,7 @@ function buildUI(){
     g.add(text(md(next), {size:NARROW ? 2.3 : 3.1, light:true, ls:-.03, y:1.25, color:DS.text}));
     g.add(text(`${DOW[dow(next)]}   ${hm(next.starts_at)} – ${next.ends_at ? hm(next.ends_at) : ""}  JST`, {data:true, size:T("body"), ls:.18, y:-.3, color:DS.text2}));
     g.add(hair(-.8, NARROW ? 4.5 : 5.5));
-    g.add(text(next.theme, {size:NARROW ? .6 : .72, y:-1.4, maxWidth:w - 1, align:"center", color:DS.white}));
+    g.add(text(`お題：${next.theme}`, {size:NARROW ? .6 : .72, y:-1.4, maxWidth:w - 1, align:"center", color:DS.white}));
     if (next.url) htmlButton(g, {label:"開催案内を見る", href:next.url, y:-2.35, w:NARROW ? 4.2 : 4.4, h:.7});
     g.add(text("Discordにて", {size:T("label"), y:-3.05, color:DS.mist}));
   });
@@ -698,11 +715,11 @@ function buildUI(){
   const mondaysOf = mo => { const mm = String(mo.m).padStart(2,"0"), days = new Date(Date.UTC(mo.y, mo.m, 0)).getUTCDate(), r = [];
     for (let d=1; d<=days; d++) if (new Date(Date.UTC(mo.y, mo.m-1, d)).getUTCDay() === 1) r.push(`${mo.y}-${mm}-${String(d).padStart(2,"0")}`); return r; };
   if (NARROW) section("CALENDAR", Y.cal1, g => {
-    const aw = 8.4, L = -aw/2, RH = .62, STEP = .7, HEAD = .75; g.userData.w = aw + .4;
+    const aw = 8.4, L = -aw/2, RH = .6, STEP = .74, HEAD = 1.1; g.userData.w = aw + .4;
     const total = months.reduce((n, mo) => n + HEAD + mondaysOf(mo).length * STEP, 0);
     let y = total / 2;
     for (const mo of months){
-      g.add(text(`${mo.y}.${String(mo.m).padStart(2,"0")}`, {size:.38, light:true, ls:.04, ax:"left", x:L, y:y - .3, color:DS.text}));
+      g.add(text(`${mo.y}.${String(mo.m).padStart(2,"0")}`, {size:.4, light:true, ls:.04, ax:"left", x:L + .05, y:y - .45, color:DS.text}));
       y -= HEAD;
       for (const key of mondaysOf(mo)){
         const e = byDate[key], ry = y - STEP/2, isPast = e ? endOf(e) <= now : key < today, isNext = e && next && e.date === next.date;
@@ -749,8 +766,7 @@ function buildUI(){
   section("LABS", Y.labs, g => {
     const lw = NARROW ? 8.2 : 9.6, ox = 0; g.userData.w = lw + 1;
     g.add(text("開催回で扱った技術の解説", {size:T("title"), ax:"left", x:ox-lw/2, y:2.6, color:DS.text}));
-    [["BERTのしくみと使い方","Attention・Transformer・日本語モデルを図で解説","./bert/","01"],
-     ["形式検証のしくみと限界","検証方式、反例の読み方、限界までを図で解説","./formal-verification/","02"]].forEach(([t,dsc,href,no],j) => {
+    LABS.forEach(({title:t, description:dsc, href}, j) => {
       const y = .95 - j*2.15;
       g.add(panel(lw, 1.75, {x:ox, y, border:DS.linePast, fillA:.28, glow:0, line:0, href}));
       g.add(text(t, {size:T("title"), ax:"left", x:ox-lw/2+.4, y:y+.25, color:DS.white}));

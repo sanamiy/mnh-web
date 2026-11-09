@@ -11,7 +11,9 @@
 ## 構成
 
 - `public/index.html`: トップページ（海に沈んだ街へスクロールで潜る3Dサイト。three.js＋GSAP＋Lenis）
-- `public/events.json`: 開催日データ。運用フォルダの `scripts/export_web_events.py` で書き出す（手編集しない）
+- `public/events.json`: 開催日データ。運用フォルダの `scripts/export_web_events.py` で書き出す（手編集しない）。カレンダーと「次回」はこのJSONから、閲覧時の日時を基準にブラウザ側で自動判定して表示する
+- `public/labs.json`: 「開催回で扱った技術の解説」カードの一覧（題名・説明・リンク）。解説ページを足したらここに追記する
+- `public/og.jpg`: URLを貼ったときのサムネイル（1200×630）。`/?og=1` を開くとHUDなしの画面になるので、それを撮って差し替える
 - `public/scene/`・`public/assets/`: 3Dシーンの追加オブジェクトと素材（出典は `public/assets/models/CREDITS.md`）
 - `public/fonts/`: Webフォント（すべてSIL Open Font License）
 - `DESIGN.md`: デザインシステム（色・文字・余白・動き・コンポーネント）
