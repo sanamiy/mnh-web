@@ -657,27 +657,19 @@ function buildUI(){
     g.add(text("SCROLL TO DIVE", {data:true, size:T("caption"), y:NARROW?-1.8:-1.95, color:DS.mist, ls:.4}));
   });
 
-  // 1. next session — no box: big light numerals, mono data, one cyan gauge line
+  // 1. next session — centred poster: label / huge light date / mono time / hairline / theme / button
   section("NEXT SESSION", Y.next, g => {
-    const w = NARROW ? 8 : 10.5, L = -w/2 + .45; g.userData.w = w + 1;
-    const line = (x, y, lw, lh, color, op = 1) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(lw, lh), new THREE.MeshBasicMaterial({color, transparent:true, opacity:op, depthTest:false, depthWrite:false, toneMapped:false}));
-      m.position.set(x, y, 0); m.renderOrder = 4; m.userData.base = op; return m; };
-    g.add(line(-w/2, -.15, .025, 6, DS.cyan, .9));                       // gauge rail
-    for (const ty of [2.85, -3.15]) g.add(line(-w/2 + .12, ty, .25, .025, DS.cyan, .9)); // rail end ticks
-    if (!next){ g.add(text("NEXT SESSION", {data:true, size:T("caption"), ls:.3, ax:"left", x:L, y:1.9, color:DS.mist}));
-      g.add(text("COMING SOON", {size:T("display"), light:true, ax:"left", x:L, y:.6, color:DS.text})); return; }
-    g.add(text(`NEXT SESSION${next.round ? `  /  #${next.round}` : ""}`, {data:true, size:T("caption"), ls:.3, ax:"left", x:L, y:2.35, color:DS.mist}));
-    const big = NARROW ? 2.1 : 2.7;
-    const dt = text(md(next), {size:big, light:true, ls:-.02, ax:"left", ay:"top", x:L - .05, y:2.05, color:DS.text}); g.add(dt);
-    const dow_ = text(DOW[dow(next)], {data:true, size:T("label"), ls:.3, ax:"left", x:L + 3.6, y:1.35, color:DS.mist});
-    const tm_ = text(`${hm(next.starts_at)}–${next.ends_at ? hm(next.ends_at) : ""}`, {data:true, size:T("body"), ls:.06, ax:"left", x:L + 3.6, y:.85, color:DS.text});
-    g.add(dow_, tm_);
-    const place = () => { const bb = dt.textRenderInfo?.blockBounds; if (bb){ const x = dt.position.x + bb[2] + .35; dow_.position.x = x; tm_.position.x = x; } };
-    dt.addEventListener("synccomplete", place); place(); // sit right after the numerals once they're laid out
-    g.add(text("お題", {size:T("label"), ax:"left", x:L, y:-.95, color:DS.mist}));
-    g.add(text(next.theme, {size:NARROW ? .6 : .75, ax:"left", x:L, y:-1.5, maxWidth:w - 1, color:DS.white}));
-    if (next.url) htmlButton(g, {label:"開催案内を見る", href:next.url, x:L + (NARROW ? 2.1 : 2.2), y:-2.65, w:NARROW ? 4.2 : 4.4, h:.7});
-    if (!NARROW) g.add(text("Discordのボイスチャットで開催", {size:T("label"), ax:"left", x:L + 4.8, y:-2.65, color:DS.mist}));
+    const w = NARROW ? 8 : 10.5; g.userData.w = w + 1;
+    const hair = (y, lw) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(lw, .02), new THREE.MeshBasicMaterial({color:DS.text, transparent:true, opacity:.28, depthTest:false, depthWrite:false, toneMapped:false}));
+      m.position.set(0, y, 0); m.renderOrder = 4; m.userData.base = .28; return m; };
+    g.add(text(next?.round ? `NEXT SESSION  —  #${next.round}` : "NEXT SESSION", {data:true, size:T("caption"), ls:.35, y:2.75, color:DS.mist}));
+    if (!next){ g.add(text("COMING SOON", {size:T("display"), light:true, y:1.2, color:DS.text})); return; }
+    g.add(text(md(next), {size:NARROW ? 2.3 : 3.1, light:true, ls:-.03, y:1.25, color:DS.text}));
+    g.add(text(`${DOW[dow(next)]}   ${hm(next.starts_at)} – ${next.ends_at ? hm(next.ends_at) : ""}  JST`, {data:true, size:T("body"), ls:.18, y:-.3, color:DS.text2}));
+    g.add(hair(-.8, NARROW ? 4.5 : 5.5));
+    g.add(text(next.theme, {size:NARROW ? .6 : .72, y:-1.4, maxWidth:w - 1, align:"center", color:DS.white}));
+    if (next.url) htmlButton(g, {label:"開催案内を見る", href:next.url, y:-2.35, w:NARROW ? 4.2 : 4.4, h:.7});
+    g.add(text("Discordのボイスチャットで開催", {size:T("label"), y:-3.05, color:DS.mist}));
   });
 
   // 2. calendar — Mondays only, as ARCHIVE-style rows (one column per month)
@@ -793,7 +785,8 @@ const depthEl = document.getElementById("depth"), progEl = document.getElementBy
 const rulerStrip = document.getElementById("rulerStrip"), RPX = 9;
 if (IM){
   let h = ""; for (let m = 10; m >= SEABED - 5; m--){ const t = (10 - m) * RPX, big = m % 10 === 0, mid = m % 5 === 0;
-    if (mid) h += `<i style="top:${t}px;width:${big ? 14 : 7}px"></i>`; } // 5m ticks only, no labels
+    h += `<i style="top:${t}px;width:${big ? 16 : mid ? 9 : 4}px${big || mid ? "" : ";opacity:.6"}"></i>`;
+    if (!big) h += `<i style="top:${t + RPX/2}px;width:2px;opacity:.4"></i>`; } // fine 0.5m/1m/5m/10m ticks, no labels
   rulerStrip.innerHTML = h;
 }
 const SCR = "#*+-/<>=01XZ";

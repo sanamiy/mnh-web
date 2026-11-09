@@ -130,7 +130,7 @@ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.12,.125,.11)*(.7+.5*wB),wU*wUp*smoot
   }
 
   // ======================================================================
-  // 1. NEXT SESSION — giant street screen, still on, mostly static
+  // 1. NEXT SESSION — ruined tower beside the Next-session text (screen removed)
   // ======================================================================
   const scrG = group("screen", -65, 40);
   const SCR = new V3(20, -15, -30);
@@ -138,32 +138,7 @@ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.12,.125,.11)*(.7+.5*wB),wU*wUp*smoot
   {
     const top = -3, b = block(12, top - SEABED, 8, .61); b.position.set(0, SEABED - SCR.y, 0); scrG.add(b);
     scrG.position.copy(SCR); scrG.rotation.y = -.56; scrG.userData.clearToCam = true;
-    const W = 9, H = 5.1;
-    scrG.add(at(box(W + .5, H + .5, .5, rust), 0, 0, 4.25));
-    scrMat = fogWrap(`varying vec2 vUv;void main(){vUv=uv;vec4 mvPosition=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mvPosition;
-      #include <fog_vertex>
-      }`, `uniform float uTime,uPower;uniform vec3 uA,uB;varying vec2 vUv;
-      float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-      void main(){ vec2 uv=vUv; float t=uTime;
-        float tear=step(.985,h(vec2(floor(t*6.),floor(uv.y*40.))));
-        uv.x+=tear*(h(vec2(t))-.5)*.08;
-        float bars=floor(uv.x*7.); vec3 bar=mix(uA,uB,fract(bars*.37+.1))*(.45+.55*h(vec2(bars,3.)));
-        float stat=h(floor(uv*vec2(240.,135.))+floor(t*14.));
-        float clear=smoothstep(.2,.8,sin(t*.23)*.5+.5);
-        vec3 c=mix(vec3(stat)*vec3(.3,.36,.42),bar*.8,clear*.75);
-        c*=.8+.2*sin(uv.y*700.); c*=1.-.35*smoothstep(.0,.06,fract(uv.y-t*.12))*step(fract(uv.y-t*.12),.06);
-        float dead=step(.62,uv.x)*step(uv.y,.42)*step(.2,h(floor(uv*vec2(30.,17.))));
-        float crack=1.-smoothstep(0.,.006,abs(uv.y-.28-.5*(uv.x-.62)+.04*sin(uv.x*40.)))*step(.55,uv.x);
-        c=mix(c,vec3(.0),dead*.9); c=mix(c,vec3(.8),crack*.5);
-        float flick=.75+.25*step(.08,fract(sin(floor(t*9.))*43758.5));
-        gl_FragColor=vec4(c*flick*(.38+.12*uPower),1.);
-        #include <fog_fragment>
-      }`, {uTime:{value:0}, uPower:P.uPower, uA:{value:C(DS.cyan)}, uB:{value:C(DS.periwinkle)}});
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(W, H), scrMat); screen.position.set(0, 0, 4.52); scrG.add(screen);
-    const spill = glow(C(DS.cyan), 14, .18); spill.position.set(0, 0, 6); scrG.add(spill);
-    updaters.push(t => { scrMat.uniforms.uTime.value = t; spill.material.opacity = .14 + .05*Math.sin(t*9.)*Math.sin(t*2.3); });
-    prop(scrG, "security_camera_01", -W/2 - .2, H/2 + .5, 4.3, {s:2, ry:-.6});
-    prop(scrG, "security_camera_01", W/2 + .2, H/2 + .5, 4.3, {s:2, ry:.6});
+    // (the street screen / LED board was removed 2026-11-10: the Next-session text already carries that information)
     prop(scrG, "modular_airduct_circular_01", 5.5, -5.5, 4.2, {s:1.4, ry:Math.PI/2, rz:.1});
   }
 
