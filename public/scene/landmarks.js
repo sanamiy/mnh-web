@@ -284,16 +284,17 @@ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.12,.125,.11)*(.7+.5*wB),wU*wUp*smoot
       x.fillStyle = "#b8743a"; x.fillRect(0, h*.68, w, h*.07); x.fillStyle = "#2a2e34"; x.fillRect(100, 140, 56, 110); });
     const detail = (rx, ry) => { const n = cloneTex(tex("rusty_painted_metal_nor_gl")), a = cloneTex(tex("rusty_painted_metal_arm")); for (const t of [n, a]) t.repeat.set(rx, ry); return {normalMap:n, roughnessMap:a, metalnessMap:a, roughness:1, metalness:.8}; };
     const topMat = pbr("rusty_metal_02", 4, 1, {metal:true}), endMat = weather(new THREE.MeshStandardMaterial({map:endTex, ...detail(1, 1)}));
-    // car body: a box re-shaped into a rounded shell — big radius along the roof, small at the floor and the car ends,
+    // car body: a box with softened edges and a gentle roof camber (small radii at roof edge, floor and car ends),
     // slight tumblehome below the windows. Face groups/UVs stay the box's, so the livery still maps onto the sides.
     const bodyGeo = (() => {
       const g = new THREE.BoxGeometry(carLen, carH, carW, 28, 14, 12), pa = g.attributes.position, hx = carLen/2, hy = carH/2, hz = carW/2, p = new V3(), c = new V3();
       for (let i = 0; i < pa.count; i++){ p.fromBufferAttribute(pa, i);
-        const r = p.y > 0 ? .85 : .22, rx = .45;                                  // roof / floor / ends
+        const r = p.y > 0 ? .32 : .2, rx = .4;                                    // roof edge / floor / ends: just softened
         c.set(THREE.MathUtils.clamp(p.x, -hx + rx, hx - rx), THREE.MathUtils.clamp(p.y, -hy + r, hy - r), THREE.MathUtils.clamp(p.z, -hz + r, hz - r));
         const d = p.clone().sub(c), k = new V3(d.x/rx, d.y/r, d.z/r); if (k.lengthSq() > 0) k.normalize();
         p.copy(c).add(new V3(k.x*rx, k.y*r, k.z*r));
         if (p.y < -.3) p.z *= 1 - .07*Math.min(1, (-.3 - p.y)/(hy - .3));       // tumblehome
+        if (p.y > hy - r) p.y += .14*(1 - Math.pow(p.z/hz, 2))*Math.min(1, (p.y - (hy - r))/r); // a gentle roof camber
         pa.setXYZ(i, p.x, p.y, p.z); }
       g.computeVertexNormals(); return g; })();
     const bogieMat = rust;
