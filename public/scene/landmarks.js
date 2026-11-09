@@ -493,13 +493,28 @@ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.12,.125,.11)*(.7+.5*wB),wU*wUp*smoot
     const tail = new THREE.ShapeGeometry(tailS); const dorsal = new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(-.05, .08), new THREE.Vector2(.08, .08), new THREE.Vector2(-.1, .16)]));
     for (const g of [tail, dorsal]){ g.deleteAttribute("uv"); g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count*2), 2)); }
     const geo = mergeGeometries([body.toNonIndexed(), tail.toNonIndexed(), dorsal.toNonIndexed()]);
-    const mat = new THREE.MeshStandardMaterial({color:0xffffff, metalness:.75, roughness:.32, side:THREE.DoubleSide, envMapIntensity:.6});
-    mat.onBeforeCompile = sh => { sh.uniforms.uTime = W.uTime;
-      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uTime;varying float vFy;")
+    // sardine-like look: blue-green back, silver flanks/belly with a row of dark spots; the silver picks up the ambient water colour
+    // (downwelling light tinted by the depth model) as a soft sheen, plus surface caustics flickering on the back near the top
+    const FISH = { uTime: W.uTime, uWater: { value: new THREE.Color() } };
+    const mat = new THREE.MeshStandardMaterial({color:0xffffff, metalness:.35, roughness:.38, side:THREE.DoubleSide});
+    mat.onBeforeCompile = sh => { Object.assign(sh.uniforms, FISH);
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uTime;varying vec3 vFp;varying vec3 vFw;")
         .replace("#include <begin_vertex>", `#include <begin_vertex>
-vFy=position.y;float tw=pow(clamp((.1-position.x)/.5,0.,1.),2.);transformed.z+=sin(uTime*9.+float(gl_InstanceID)*1.7)*tw*.07;`);
-      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying float vFy;")
-        .replace("#include <map_fragment>", "#include <map_fragment>\ndiffuseColor.rgb*=mix(vec3(.9,.95,1.),vec3(.12,.16,.2),smoothstep(-.01,.06,vFy));"); };
+vFp=position;float tw=pow(clamp((.1-position.x)/.5,0.,1.),2.);transformed.z+=sin(uTime*9.+float(gl_InstanceID)*1.7)*tw*.07;`)
+        .replace("#include <fog_vertex>", "#include <fog_vertex>\nvFw=(modelMatrix*instanceMatrix*vec4(transformed,1.)).xyz;");
+      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uTime;uniform vec3 uWater;varying vec3 vFp;varying vec3 vFw;")
+        .replace("#include <map_fragment>", `#include <map_fragment>
+float back=smoothstep(.0,.06,vFp.y);
+vec3 silver=vec3(.78,.82,.84), dorsal=vec3(.05,.13,.15);
+float spots=(1.-smoothstep(.009,.014,length(vec2(fract(vFp.x*22.)-.5,(vFp.y-.028)*22.)/22.)))*step(-.2,vFp.x)*step(vFp.x,.22);
+diffuseColor.rgb=mix(silver,dorsal,back)*(1.-.6*spots);`)
+        .replace("#include <opaque_fragment>", `{vec3 Vv=normalize(vViewPosition);float fres=pow(1.-abs(dot(normalize(normal),Vv)),2.5);
+ float belly=1.-smoothstep(.0,.06,vFp.y);
+ outgoingLight+=uWater*(.5+1.2*fres)*belly*1.4;
+ float cz=exp(vFw.y/12.);float cs=pow(abs(sin(vFw.x*1.7+uTime*1.3)*sin(vFw.z*1.9-uTime*1.1)),6.);
+ outgoingLight+=vec3(.6,.8,.85)*cs*cz*(1.-belly)*.35;}
+#include <opaque_fragment>`); };
+    updaters.push(() => FISH.uWater.value.copy(scene.background).multiplyScalar(1.6));
     fish.im.geometry.dispose(); fish.im.material.dispose(); fish.im.geometry = geo; fish.im.material = mat;
     const col = new THREE.Color();
     const fishScale = .8; const schools = Array.from({length:6}, () => ({ c: new V3((rnd()-.5)*30, -4 - rnd()*30, -12 - rnd()*22), r: 6 + rnd()*7, s: (.18 + rnd()*.12) * (rnd() < .5 ? -1 : 1), ph: rnd()*7 })); // sardine-like schools stay in the sunlit layer
