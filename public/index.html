@@ -826,8 +826,13 @@ const ray = new THREE.Raycaster(); ray.layers.enable(1); const ptr = new THREE.V
 let hovered = null;
 function pick(e){
   ptr.set(e.clientX/(canvas.clientWidth || innerWidth)*2-1, -((e.clientY - canvas.getBoundingClientRect().top)/(canvas.clientHeight || innerHeight)*2-1)); ray.setFromCamera(ptr, camera);
-  const hit = ray.intersectObjects(clickables.filter(c => c.parent?.visible), false)[0];
-  return hit?.object ?? null;
+  // a panel's plane is larger than the card (glow margin), so neighbouring rows' planes overlap: only count hits inside the card itself
+  const shown = c => { for (let o = c; o; o = o.parent) if (!o.visible) return false; return true; };
+  for (const h of ray.intersectObjects(clickables.filter(shown), false)){
+    const lp = h.object.worldToLocal(h.point.clone()), sz = h.object.material.uniforms.uSize.value;
+    if (Math.abs(lp.x) <= sz.x/2 && Math.abs(lp.y) <= sz.y/2) return h.object;
+  }
+  return null;
 }
 addEventListener("pointermove", e => {
   if (e.pointerType === "mouse") lookT.set(e.clientX/innerWidth*2-1, -(e.clientY/innerHeight*2-1)); /* touch must not steer the camera: a finger dragging to scroll swung the view and left it off-centre */
