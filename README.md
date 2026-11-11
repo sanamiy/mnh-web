@@ -33,13 +33,20 @@ http://localhost:8000/ を開きます。
 
 ## 更新・公開
 
-変更をGitにcommit・pushしてから、Cloudflareにログイン済みの端末で実行します。
+`main` に push すると、GitHub Actions（`.github/workflows/deploy.yml`）が `public/` をCloudflare Pagesへ自動で公開します。`public/` 以下に変更がない push では動きません。Actionsタブの「Deploy to Cloudflare Pages」から手動実行もできます。
+
+必要なGitHubのSecrets（Settings → Secrets and variables → Actions）:
+
+- `CLOUDFLARE_API_TOKEN`: 権限「Account → Cloudflare Pages → Edit」のAPIトークン
+- `CLOUDFLARE_ACCOUNT_ID`: CloudflareのアカウントID
+
+手元から直接公開したいときは、Cloudflareにログイン済みの端末で実行します。
 
 ```sh
 ./scripts/deploy.sh
 ```
 
-このプロジェクトはDirect Upload方式です。GitへのpushだけではCloudflare Pagesは更新されません。認証情報はWranglerが端末側で管理し、リポジトリには含めません。
+このプロジェクトはDirect Upload方式です（CloudflareのGit連携ではなく、ActionsからWranglerでアップロードします）。認証情報はWranglerが端末側で管理し、リポジトリには含めません。
 
 ## 資料の管理
 

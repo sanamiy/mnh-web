@@ -6,4 +6,4 @@
 - BERT 解説の正本は `public/bert/index.html`。形式検証は `public/formal-verification/index.html`。
 - 相対リンクを使い、目次のアンカー・スマートフォンでの表示を確認する。
 - 開催運用データ、認証情報、Discord 内部記録はこの公開リポジトリに含めない。
-- 公開は `./scripts/deploy.sh`。GitへのpushだけではCloudflare Pagesは更新されない。
+- 公開は `main` へのpushでGitHub Actionsが自動実行する（`public/` 変更時）。手元からは `./scripts/deploy.sh`。
