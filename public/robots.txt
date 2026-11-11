@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://monday-night-hackathon.pages.dev/sitemap.xml

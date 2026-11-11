@@ -3,24 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="毎週月曜20時から開催するオンラインハッカソン。2時間ものづくりして発表">
+<meta name="description" content="マンデーナイトハッカソン（Monday Night Hackathon）は、毎週月曜20時からDiscordで開催するオンラインハッカソン。2時間ものづくりして、1人3分で発表します。開催日・お題・過去回の解説資料を掲載。">
 <link rel="canonical" href="https://monday-night-hackathon.pages.dev/">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Monday Night Hackathon">
-<meta property="og:title" content="Monday Night Hackathon｜月曜の夜、新しい技術に出会う">
-<meta property="og:description" content="毎週月曜20時から開催するオンラインハッカソン。2時間ものづくりして発表">
+<meta property="og:site_name" content="マンデーナイトハッカソン（Monday Night Hackathon）">
+<meta property="og:title" content="マンデーナイトハッカソン｜月曜の夜、新しい技術に出会う">
+<meta property="og:description" content="マンデーナイトハッカソンは毎週月曜20時から開催するオンラインハッカソン。2時間ものづくりして発表">
 <meta property="og:url" content="https://monday-night-hackathon.pages.dev/">
 <meta property="og:image" content="https://monday-night-hackathon.pages.dev/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="月夜の海に沈んだ街と、Monday Night Hackathonのロゴ">
+<meta property="og:image:alt" content="月夜の海に沈んだ街と、マンデーナイトハッカソン（Monday Night Hackathon）のロゴ">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Monday Night Hackathon｜月曜の夜、新しい技術に出会う">
-<meta name="twitter:description" content="毎週月曜20時から開催するオンラインハッカソン。2時間ものづくりして発表">
+<meta name="twitter:title" content="マンデーナイトハッカソン｜月曜の夜、新しい技術に出会う">
+<meta name="twitter:description" content="マンデーナイトハッカソンは毎週月曜20時から開催するオンラインハッカソン。2時間ものづくりして発表">
 <meta name="twitter:image" content="https://monday-night-hackathon.pages.dev/og.jpg">
 <meta name="theme-color" content="#090822">
-<title>Monday Night Hackathon</title>
+<title>マンデーナイトハッカソン｜Monday Night Hackathon 毎週月曜夜のオンラインハッカソン</title>
+<meta name="keywords" content="マンデーナイトハッカソン,Monday Night Hackathon,MNH,ハッカソン,オンラインハッカソン,もくもく会,Discord">
+<link rel="alternate" hreflang="ja" href="https://monday-night-hackathon.pages.dev/">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"WebSite","@id":"https://monday-night-hackathon.pages.dev/#website","url":"https://monday-night-hackathon.pages.dev/","name":"マンデーナイトハッカソン","alternateName":["Monday Night Hackathon","MNH"],"inLanguage":"ja","publisher":{"@id":"https://monday-night-hackathon.pages.dev/#org"}},
+ {"@type":"Organization","@id":"https://monday-night-hackathon.pages.dev/#org","name":"マンデーナイトハッカソン","alternateName":["Monday Night Hackathon","MNH"],"url":"https://monday-night-hackathon.pages.dev/","logo":"https://monday-night-hackathon.pages.dev/og.jpg","sameAs":["https://luma.com/mnh-tokyo","https://discord.gg/J8HXevc6J3"]},
+ {"@type":"EventSeries","@id":"https://monday-night-hackathon.pages.dev/#series","name":"マンデーナイトハッカソン（Monday Night Hackathon）","description":"マンデーナイトハッカソン（Monday Night Hackathon）は、毎週月曜20時からDiscordで開催するオンラインハッカソン。2時間ものづくりして、1人3分で発表します。開催日・お題・過去回の解説資料を掲載。","url":"https://monday-night-hackathon.pages.dev/","inLanguage":"ja","eventAttendanceMode":"https://schema.org/OnlineEventAttendanceMode","location":{"@type":"VirtualLocation","url":"https://discord.gg/J8HXevc6J3"},"organizer":{"@id":"https://monday-night-hackathon.pages.dev/#org"},"image":"https://monday-night-hackathon.pages.dev/og.jpg"}
+]}
+</script>
 <style>
 @font-face{font-family:Geist;src:url(./fonts/geist-400.woff) format("woff");font-weight:400;font-display:swap}
 @font-face{font-family:Geist;src:url(./fonts/geist-500.woff) format("woff");font-weight:500 700;font-display:swap}
@@ -108,13 +117,18 @@ body.no-gl .mirror a{color:var(--cyan)}
 <div id="ui"></div>
 
 <main class="mirror" id="mirror">
-  <h1>Monday Night Hackathon</h1>
-  <p>月曜の夜、新しい技術に出会う。毎週月曜 20:00〜22:50（日本時間）、Discordのボイスチャットで開催しています。</p>
-  <section><h2>次回の開催</h2><p id="m-next">読み込み中…</p></section>
+  <h1>マンデーナイトハッカソン（Monday Night Hackathon）</h1>
+  <p>月曜の夜、新しい技術に出会う。マンデーナイトハッカソンは、毎週月曜 20:00〜22:50（日本時間）にDiscordのボイスチャットで開催しているオンラインハッカソンです。</p>
+  <section><h2>マンデーナイトハッカソンとは</h2>
+    <p>回ごとのお題（お題なしの回もあります）に沿って、参加者それぞれが2時間でものづくりをして、最後に1人3分で発表します。開催回で扱った技術は、解説ページとしてこのサイトで公開しています。</p>
+    <p>当日の流れ：20:00 イントロ（10分）→ 制作（120分）→ 発表（30分・1人3分、スライドは1人1枚）。作ったものは制作終了までに指定のフォーラムへ投稿します。</p>
+    <p>ハッシュタグは #マンデーナイトハッカソン 。参加登録は<a href="https://luma.com/mnh-tokyo">Luma</a>、開催レポートはnoteで公開しています。</p>
+  </section>
+  <section><h2>次回の開催</h2><p id="m-next">日程はLumaとDiscordでお知らせしています。</p></section>
   <section><h2>開催日カレンダー</h2><ul id="m-cal"></ul></section>
   <section><h2>これまでの開催</h2><ul id="m-past"></ul></section>
   <section><h2>公開資料</h2><ul id="m-labs"></ul></section>
-  <section><h2>参加する</h2><p><a id="m-discord" href="#">Discordに参加する</a></p></section>
+  <section><h2>参加する</h2><p><a id="m-discord" href="https://discord.gg/J8HXevc6J3">マンデーナイトハッカソンのDiscordに参加する</a></p></section>
 </main>
 
 <script type="module">
@@ -193,6 +207,19 @@ const months = [-1,0,1].map(i => ({ y: TY + Math.floor((TM-1+i)/12), m: ((TM-1+i
   document.getElementById("m-past").innerHTML = past.map(li).join("");
   if (data.discord_invite) document.getElementById("m-discord").href = data.discord_invite;
   document.getElementById("m-labs").innerHTML = LABS.map(l => `<li><a href="${esc(l.href)}">${esc(l.title)}</a></li>`).join("");
+  // structured data for search: one Event per upcoming session (Google reads JSON-LD added by script)
+  const SITE = "https://monday-night-hackathon.pages.dev/";
+  const ld = events.filter(e => endOf(e) > now).slice(0,6).map(e => ({
+    "@type":"Event", name:`マンデーナイトハッカソン${e.round?` #${e.round}`:""}「${themeLabel(e.theme)}」`,
+    description:`毎週月曜夜のオンラインハッカソン。お題「${themeLabel(e.theme)}」で2時間ものづくりして、1人3分で発表します。`,
+    startDate:e.starts_at, ...(e.ends_at?{endDate:e.ends_at}:{}),
+    eventStatus:"https://schema.org/EventScheduled", eventAttendanceMode:"https://schema.org/OnlineEventAttendanceMode",
+    location:{"@type":"VirtualLocation", url:data.discord_invite || SITE},
+    image:[SITE + "og.jpg"], url:e.url || SITE, inLanguage:"ja",
+    organizer:{"@type":"Organization", name:"マンデーナイトハッカソン", url:SITE},
+    superEvent:{"@id":SITE + "#series"} }));
+  if (ld.length) { const sd = document.createElement("script"); sd.type = "application/ld+json";
+    sd.textContent = JSON.stringify({"@context":"https://schema.org","@graph":ld}); document.head.appendChild(sd); }
 }
 
 // ---------------- renderer ----------------
