@@ -33,7 +33,7 @@ http://localhost:8000/ を開きます。
 
 ## 更新・公開
 
-`main` に push すると、GitHub Actions（`.github/workflows/deploy.yml`）が `public/` をCloudflare Pagesへ自動で公開します。`public/` 以下に変更がない push では動きません。Actionsタブの「Deploy to Cloudflare Pages」から手動実行もできます。
+`main` に push すると、GitHub Actions（`.github/workflows/deploy.yml`）がCloudflare Pagesへ自動で公開します。公開前に `scripts/prerender.py` が `public/` を `_site/` にコピーし、開催日・過去回・資料の一覧とイベントの構造化データをHTMLに書き込みます（検索エンジン向け。`_site/` はコミットしない）。公開後はIndexNow（Bingなど）に更新を通知します。`public/` 以下に変更がない push では動きません。Actionsタブの「Deploy to Cloudflare Pages」から手動実行もできます。
 
 必要なGitHubのSecrets（Settings → Secrets and variables → Actions）:
 

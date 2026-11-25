@@ -218,7 +218,7 @@ const months = [-1,0,1].map(i => ({ y: TY + Math.floor((TM-1+i)/12), m: ((TM-1+i
     image:[SITE + "og.jpg"], url:e.url || SITE, inLanguage:"ja",
     organizer:{"@type":"Organization", name:"マンデーナイトハッカソン", url:SITE},
     superEvent:{"@id":SITE + "#series"} }));
-  if (ld.length) { const sd = document.createElement("script"); sd.type = "application/ld+json";
+  if (ld.length) { document.getElementById("ld-events")?.remove(); const sd = document.createElement("script"); sd.type = "application/ld+json"; sd.id = "ld-events";
     sd.textContent = JSON.stringify({"@context":"https://schema.org","@graph":ld}); document.head.appendChild(sd); }
 }
 

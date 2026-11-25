@@ -3,7 +3,7 @@ name: Deploy to Cloudflare Pages
 on:
   push:
     branches: [main]
-    paths: ["public/**", ".github/workflows/deploy.yml"]
+    paths: ["public/**", "scripts/prerender.py", ".github/workflows/deploy.yml"]
   workflow_dispatch:
 
 permissions:
@@ -18,9 +18,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Write event lists into the HTML (for search engines)
+        run: python3 scripts/prerender.py
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.156.1"
-          command: pages deploy public --project-name monday-night-hackathon --branch main --commit-dirty=true
+          command: pages deploy _site --project-name monday-night-hackathon --branch main --commit-dirty=true
+      - name: Tell Bing and other IndexNow engines that the pages changed
+        continue-on-error: true
+        run: |
+          KEY=b4fc08b17c75dab11ff67d59c4425754
+          SITE=https://monday-night-hackathon.pages.dev
+          curl -sS -o /dev/null -w "IndexNow: HTTP %{http_code}\n" -X POST https://api.indexnow.org/IndexNow \
+            -H "Content-Type: application/json; charset=utf-8" \
+            -d "{\"host\":\"monday-night-hackathon.pages.dev\",\"key\":\"$KEY\",\"keyLocation\":\"$SITE/$KEY.txt\",\"urlList\":[\"$SITE/\",\"$SITE/bert/\",\"$SITE/formal-verification/\"]}"

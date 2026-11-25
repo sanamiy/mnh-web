@@ -7,3 +7,6 @@ __pycache__/
 # Cloudflare CLI local state
 .wrangler/
 node_modules/
+
+# prerendered deploy copy (scripts/prerender.py)
+_site/
